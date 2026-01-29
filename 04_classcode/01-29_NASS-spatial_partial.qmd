@@ -1,0 +1,141 @@
+---
+title: "USDA NASS Soybeans data"
+subtitle: "Geospatial summaries"
+author: "All of us"
+format:
+  html:
+    code-fold: true
+    embed-resources: true
+    toc: true
+    number-sections: true
+    theme: cerulean
+    #cerulean, journal, quartz, sketchy, slate, morph, superhero, vapor
+knitr: 
+  opts_chunk: 
+    message: false
+    warning: false
+---
+
+# Introduction  
+This report was developed to explore, through **maps**, USDA NASS data for **soybeans production at the county level for all years available**.  
+
+The raw data was downloaded from [USDA NASS QuickStats portal](https://quickstats.nass.usda.gov).  
+
+# Learning objectives  
+The learning objectives for this exercise are:  
+- Import wrangled USDA NASS data  
+- Connect tabular data with spatial data based on county information  
+- Create a pub ready static map  
+- Create an interactive map  
+- Explore a rendered quarto script with interactivity  
+
+# Setup  
+## Loading packages  
+```{r }
+#install.packages("remotes")
+#remotes::install_github("ropensci/USAboundaries")
+#remotes::install_github("ropensci/USAboundariesData")
+#install.packages("mapview")
+#install.packages("viridis")
+
+library(tidyverse)
+library(janitor)
+library(ggthemes)
+library(sf)
+library(USAboundaries)
+library(mapview)
+library(viridis)
+
+```
+
+## Importing data  
+```{r soy}
+soy_w 
+
+soy_w
+```
+
+## Creating geospatial data 
+```{r}
+ga_co 
+
+# Checking class
+class(ga_co)
+
+# Exploring the object
+ga_co 
+
+# Quick plot
+
+```
+
+Our goal now is to merge both the NASS data set `soy_w` with the GA counties geospatial dataset `ga_co`.  
+
+# Wrangling  
+## NASS data  
+```{r soy_w_all}
+soy_w_all <- soy_w %>%
+  # Removing other counties
+  filter(county != "OTHER COUNTIES" &
+           county != "OTHER (COMBINED) COUNTIES") %>%
+  # Matching county capitalization to ga_co
+  mutate(county = str_to_title(county)) 
+
+soy_w_all 
+```
+
+## County geospatial data  
+```{r ga_co_w}
+ga_co_w 
+
+ga_co_w    
+```
+
+## Joining NASS and county  
+```{r soy_sp}
+soy_sp  
+
+soy_sp
+```
+
+- Check number of rows of product, compare to `soy_w_all`  
+
+# Maps - static  
+## Plot 2023 production by county as a map  
+```{r}
+soy_sp 
+```
+
+## Make map above publication ready  
+```{r}
+soy_sp %>%
+  filter(year == 2024) %>%
+  ggplot()+
+  geom_sf(data = ga_co_w,
+          size = .2)+
+  geom_sf(data = ~., aes(fill = prod_mibu),
+          size = .2
+  )
+  # Selecting a colorblind-safe palette
+
+  # Changing fill legend label, giving a title
+
+  # Adding county names
+
+  # Changing to a cleaner theme
+
+
+```
+# Maps - interactive  
+## Interactive map of most recent year
+```{r}
+soy_sp_22 <- soy_sp %>%
+          filter(year == 2024)
+
+```
+
+# Summary  
+In this exercise we  
+- Learned how to connect tabular and spatial data  
+- Create pub ready static map, and an interactive map  
+
