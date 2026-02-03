@@ -1,0 +1,150 @@
+---
+title: "Digitizing field boundary"
+format: html
+---
+
+# Introduction  
+When working with geospatial data, having a boundary of a field is one of the first steps.  
+
+When working with on-farm data, it is common for growers to already have a boundary file, most likely in a shapefile (.shp) format.  
+
+In case they don't, the easiest way to share that with you is by providing lon/lat coordinates, which are easily retrieved on Google maps or any other mobile phone map app.  
+
+If they do share lon/lat coordinates and ask for you to create a boundary, then you would need to know how to do so on your side.  
+
+The act of creating a field boundary is referred to as **digitizing**.  
+
+Digitizing a field boundary can be accomplished in any GIS software including ArcMap, QGIS, Google Earth, and R.  
+
+Let's explore how to digitize in R in this exercise.  
+
+# Situation  
+Throughout the semester, we will start working with data from a field in south Georgia.  
+
+Suppose this grower does not have a boundary file, and asks you to create it.  
+
+All they provide you with are the lon/lat coordinates of the field centroid:  
+
+> lon: -84.76151  
+> lat: 31.18928
+ 
+Let's learn how to digitize the boundary for this field.  
+# Setup  
+```{r loading packages}
+library(tidyverse)
+library(sf)
+library(mapview)
+library(leaflet.extras) # for digitizing drawing tool bar  
+library(mapedit) # for creating the boundary
+
+```
+
+# Wrangling  
+
+We need to transform the coordinates into a spatial point.  
+
+```{r centroid}
+centroid 
+  # Transforming df into sf
+
+  # Assigning proper CRS
+
+
+```
+Let's visualize it with `mapview()`  
+
+```{r}
+
+```
+
+Ok, we have an idea of where the field is based on its centroid.  
+
+Now, let's go ahead and create the boundary of this field.  
+
+# Digitizing boundary  
+First, we need to create a map call that allows for digitizing, as the default behavior of mapview alone does not provide this option.  
+
+```{r}
+# Creating map for digitizing
+digitizing 
+
+digitizing
+```
+
+Now, we initialize a map view session, and we are done with the boundary and hit `Done`, then the digitized boundary will be assigned to an R object.  
+
+Steps:  
+1. Run the code in the chunk below  
+
+2. A Viewer window will appear. Pop it up by clicking on the up-arrow symbol  
+
+3. Once the map is up, on the left-hand side there is a drawing menu. Click on the option for **"Draw a polygon"**.  
+
+4. Click on the map to start adding points to your boundary.  
+
+5. Keep adding points to the boundary to draw its shape. You may need to zoom out and back in to adjust your view of the field.  
+
+6. To finalize the digitizing, just click again on the first point to close the shape.  
+
+7. To make sure your digitized boundary is "saved" to an object, click on the "Done" button on the right bottom side of the pane. This will close the viewer window.  
+
+
+```{r}
+boundary 
+
+boundary
+```
+
+Inspect the `boundary` object after you are done.  
+It has `$drawn`, `$edited`, `$deleted`, `$finished` and `$all` list components.  
+
+We want to retrieve the `$finished` component.  
+
+```{r}
+boundary_w  
+
+boundary_w
+```
+Let's inspect it and make sure we got it correctly.  
+```{r}
+
+```
+How does it look? If you are satisfied with the result, proceed to exporting it.  
+
+If something is not up to par, then redo the digitizing steps.  
+
+# Exporting boundary  
+Now all we need to do is export it to file, so we can use it for all the upcoming analysis.  
+
+Notice that as of now, the boundary is assigned to an object named `boundary_w`, and this object is of type `sf`.  
+
+We need to export it to file and provide it with a sensible file extension.  
+
+A couple of options would be as shapefile (`.shp`), or geojson (`.geojson`).  
+
+Let's do both and talk about their differences.
+
+First, as shapefile
+```{r}
+
+```
+
+Go to the `output` folder and check what happened.  
+
+This is how shapefiles are exported.  
+The `.shp` file comes along with other accompanying files like `.dbf`, `.prj`, and `.shx`, where each contains a different piece of information needed to use the `.shp` file.  
+
+Shapefiles are the most common geospatial vector types in the industry, but are also cumbersome due to needed all accompanying files to work.  
+
+One alternative is using .geojson:  
+```{r}
+
+```
+
+With the `.geojson` extension, only one file was exported, which makes it easier and simpler when sharing with someone else.  
+
+# Summary  
+We learned how to digitize a field boundary having only the field centroid coordinates.  
+
+This skill is important as a lot of other geospatial data can only be processed or retrieved through having an accurate field boundary of the field.  
+

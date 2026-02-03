@@ -1,0 +1,227 @@
+---
+title: "Retrieving open data"
+format: html
+---
+# Learning objectives   
+Today's goals are to:  
+- Learn about application programming interfaces (APIs) to download open source data through R
+- Obtain and map soil series data from USDA SSURGO  
+- Obtain and map elevation data   
+- Learn about map components and how to add them in ggplot  
+
+# Introduction  
+## SSURGO
+The **Soil Survey Geographic Database (SSURGO)** database contains information about soil as collected by the National Cooperative Soil Survey over the course of a century. 
+
+The information can be displayed in **tables or as maps** and is available for most areas in the United States served by the USDA-NRCS.   
+
+The information was gathered by walking over the land and observing the soil. Many soil samples were analyzed in laboratories. The maps outline areas called **map units**. The information was collected at scales ranging from 1:12,000 to 1:63,360.    
+
+The mapping is intended for natural resource planning and management by landowners, townships, and counties. 
+
+The maps are linked in the database to information about the component soils and their properties for each map unit. Examples of information available from the database include:  
+- available water capacity 
+- electrical conductivity  
+- frequency of flooding  
+- yields for cropland, woodland, rangeland, and pastureland 
+- limitations affecting recreational development, building site development, and other engineering uses.  
+
+
+SSURGO datasets consist of map data, tabular data, and information about how the maps and tables were created. SSURGO map data can be viewed in the Web Soil Survey or downloaded in ESRI® Shapefile format. The coordinate systems are Geographic. 
+
+## Web Soil Survey  
+SSURGO can be accessed through the Web Soil Survey: https://websoilsurvey.nrcs.usda.gov/app/  
+
+Let's explore it a bit. 
+
+Use our field coordinates to set area of interest (AOI):  
+
+- longitude: -84.76151  
+- latitude: 31.18931  
+
+## Accessing SSURGO through R  
+We will be accessing SSURGO data through the package `FedData` as our API.  
+
+
+## Elevation  
+**Elevation** data is very important to agriculture because it can be a proxy to water movement, infiltration, and run-off potentials across a landscape.  
+
+To access open-source elevation data, we are going to use the package `elevatr` as our API. A vignette for how to use the package can be found here: https://cran.r-project.org/web/packages/elevatr/vignettes/introduction_to_elevatr.html  
+
+## Map components  
+There are four key components of a good map:  
+  - Spatial information  
+  - Legend  
+  - North arrow  
+  - Scale  
+
+We need to make sure that our map products contain at least these 4 components.    
+
+They could contain other components like a title depending on the audience and intended use.  
+
+# Setup  
+```{r packages}
+#install.packages("elevatr")
+#install.packages("stars")
+#install.packages("FedData")
+#install.packages("patchwork")
+#install.packages("ggspatial)
+
+library(tidyverse) #dplyr, tidyr, ggplot2
+library(sf) # geospatial vector objects
+library(mapview) # interactive maps
+library(elevatr) # open-source elevation data
+library(stars) # geospatial raster objects
+library(FedData) # open-source soil series data
+library(ggspatial) # for map components 
+library(ggthemes) # for theme_map()
+library(patchwork) # combine multiple plots
+```
+
+```{r boundary}
+boundary 
+
+boundary
+```
+
+# Soil series  
+Retrieving soils data from SSURGO data base.
+```{r soils}
+soils 
+
+soils
+```
+
+The `soils` objects has 2 components:  
+- spatial (containing the spatial information)  
+- tabular (containing all the tabular data)   
+
+Let's explore them:  
+```{r soils spatial}
+
+```
+
+On tabular, let's take a look at:  
+- component  
+- muaggatt  
+- mucropyld  
+
+```{r soils tabular}
+
+```
+
+For a full description of column names and their meaning, check this resource: https://www.nrcs.usda.gov/sites/default/files/2022-08/SSURGO-Metadata-Table-Column-Descriptions-Report.pdf 
+
+Let's combine the spatial component with one of the tabular components, the one containing **soil series** information.  
+
+That's the component found as `soils$tabular$muaggatt`.  
+
+```{r series_sf}
+series_sf <- 
+  # Starting with the spatial component, currently an sp object
+  soils$spatial
+  # Transforming from sp to sf
+
+    # Cleaning names
+
+    # Joining with the muaggatt tabular data using a common column (musym)
+
+    # Cropping to the boundary
+
+series_sf
+
+```
+Now let's plot it.
+
+```{r interactive series}
+
+```
+
+```{r static series}
+series_map 
+
+series_map
+```
+
+Now, let's combine the spatial component with another tabular component, the one containing **crop yields**.  
+
+That's the component found as `soils$tabular$mucropyld`.  
+```{r yield_sf }
+yield_sf <- 
+  # Starting with the spatial component, currently an sp object
+  soils$spatial %>% 
+  # Transforming from sp to sf
+  st_as_sf() %>%
+  # Cleaning names
+  janitor::clean_names() %>%
+  mutate(mukey = as.numeric(mukey)) %>% 
+  # Joining with the muaggatt tabular data using a common column (musym)
+  left_join(soils$tabular$mucropyld, by = "mukey") %>%
+  # Cropping to the boundary
+  st_intersection(boundary)
+  # Selecting only needed columns  
+
+    # Only keeping corn
+
+yield_sf 
+
+```
+Let's make an interactive map for yield only for corn.  
+```{r interactive yield}
+mapview(yield_sf,
+        zcol = "nonirryield.r")
+```
+
+```{r static yield }
+yield_map <- ggplot() +
+  geom_sf(data = series_sf) +
+  geom_sf(data = yield_sf, aes(fill = nonirryield.r)) +
+  scale_fill_viridis_b(option = "A") +
+  labs(fill = "Corn yield (bu/ac)") +
+  theme_map() +
+  theme(legend.position = "right") 
+
+yield_map
+```
+
+# Elevation  
+```{r elevation}
+elevation 
+
+elevation
+
+```
+
+A few notes on the **second pane** printed above:  
+- `delta` is the raster resolution (i.e., 3.99 m in this case)  
+- `refsys` is the CRS of the layer (i.e., WGS 84)  
+
+What happens to `delta` if we chanfe the `z` value to 13?  
+
+Make sure to change it back to 14 after testing it.  
+
+Now, let's plot it.
+
+```{r interactive elevation}
+
+```
+
+```{r static elevation}
+elevation_map 
+
+elevation_map
+```
+
+# Combining and exporting maps  
+```{r}
+
+```
+
+# Summary  
+In this exercise, we:  
+- Learned how to pull data from two open-source APIs (SSURGO and elevation)  
+
+- Created maps for different variables while adding map components  
+
+- Exported to file a combined map  
+
