@@ -1,0 +1,91 @@
+---
+title: "Assignment 4 - Digitizing and Open data"
+author: "YOUR NAME HERE"  
+format:
+  html:
+    code-fold: false
+    embed-resources: true
+    toc: true
+    number-sections: true
+    theme: cerulean
+---
+
+# Instructions  
+Once you download this script from GitHub, then:  
+
+  - Move it into your already-created project folder structure "06_opendata", inside the "code" sub-folder.  
+  - You do not need to create new scripts. You can use the class scripts to copy code from, and paste those chunks in this script. All the code needed for this assignment should be inserted in this script.  
+  - I left you the scaffolding of the structure of the exercise (i.e., look on the outline to the right). However, it is your job to decide which chunks/codes you need to paste in this script to answer the questions.  
+  - Make sure that when you paste chunks/codes from the class scripts, that you place the chunks/codes under the appropriate section (again, look on the outline to the right). For ex., the chunk containing the packages needed for the exercise should be under the "Setup" heading 1.  
+  - Besides code, there are 3 specific questions in this script. Make sure that you produce the plot/table needed to answer them, AND that you also write down a sentence for your answer. Only showing a plot/table is not sufficient in answering the questions.  
+
+  
+# Introduction  
+Now it is your turn to   
+
+  - digitize a field boundary  
+  - retrieve open data related to soil series and elevation, and   
+  - create plots to explore it  
+
+Find an agricultural field of your interest. This could be a field from a farm you have access to, or perhaps a field on a UGA research station where your studies were/are/will be conducted.  
+
+## Question 1) Provide below the longitude and latitude of the centroid of your selected field.  
+
+
+# Setup  
+Use this section to load the necessary packages. Remember, you will to do digitizing AND open data retrieval in this same script.  
+
+# Digitizing  
+Use this section to digitize AND export to file (as .geojson) the boundary of your selected field. When exporting the boundary, make sure to export it to the `output` folder.    
+
+**NOTE**: right before you render this script for submission, comment off the digitizing code so it does not run when rendering. You will need to write a code to import your previously-created boundary at the time of rendering (I'll demo this).  
+
+
+
+# Soil series  
+Use this section to:   
+
+  - retrieve SSURGO data for your field,  
+  - perform the required wrangling steps, and  
+  - create maps for soil series name and corn yield  
+
+## Question 2) How many different soil series were found in this field? What is their names?  
+
+## Question 3) Was there yield data available for any crop for the soil series within your field? List below which crops had yield data available.
+
+## Question 4) IF your field had data for crop yield, choose one crop only. List below what was the crop you selected, and what were the different values of yield for the selected crop for these different soil series (if your field had no crop yield data, than explain so).   
+
+
+# Elevation  
+Use this section to:   
+
+  - retrieve elevation data at the highest zoom level possible  
+  - perform the required wrangling steps, and  
+  - create a map for elevation  
+  
+# Combining and exporting maps  
+Use this section to combine your individual static maps above into one, and export it to file.  
+
+## Question 5) Now that you can visualize all three maps together, try to explain the effect of soil series and elevation on crop yield. Which soil and elevation conditions seem to promote higher yields in this field?  
+
+
+# Submitting your work  
+Once you have developed all the code and answers, make sure to Render this quarto file.  
+
+**Notes on rendering**:  
+
+- Make sure to render your work and inspect how the final html look like.  
+- If it does not look professional for whatever reason, then fix the issue, re-render it, recheck.  
+- Only send me your work once your html file looks professional.  
+  - **DO NOT** delete the file's heading levels (# and ##). They set up the proper heading 1 and 2 levels, and I use them to guide my grading.  
+  - If a given chunk is also outputting warnings or messages, inhibit this behavior by changing the chunk options `message` and `warning` to `FALSE` (I'll demo this in a moment).  
+  
+  - If, after rendered, 2 lines of text are connected and you wish to "break line" between them, add 2 extra spaces after the first one (I'lld demo this in a moment).  
+
+After rendering, an .html file will be created on your `code` folder.  
+
+Rename this file to `assignment-04-opendata-LASTNAME.html`.    
+
+For ex., mine would be `assignment-04-opendata-Bastos.html`.
+
+Upload the **html** file to eLC by Wednesday Feb 11th 11:59 pm.  
