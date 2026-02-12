@@ -41,7 +41,6 @@ Use this section to digitize AND export to file (as .geojson) the boundary of yo
 **NOTE**: right before you render this script for submission, comment off the digitizing code so it does not run when rendering. You will need to write a code to import your previously-created boundary at the time of rendering (I'll demo this).  
 
 
-
 # Soil series  
 Use this section to:   
 
@@ -88,4 +87,4 @@ Rename this file to `assignment-04-opendata-LASTNAME.html`.
 
 For ex., mine would be `assignment-04-opendata-Bastos.html`.
 
-Upload the **html** file to eLC by Wednesday Feb 11th 11:59 pm.  
+Upload the **html** file to eLC by Wednesday Feb 18th 11:59 pm.  
