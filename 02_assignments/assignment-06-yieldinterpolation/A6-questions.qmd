@@ -46,4 +46,4 @@ Some tips:
 
 ---
 
-After answering all questions, include your last name on the file name (e.g., A6-questions-Bastos.qmd), render it, and upload the .html to eLC by **Wednesday, Feb 25 11:59 pm**.  
+After answering all questions, include your last name on the file name (e.g., A6-questions-Bastos.qmd), render it, and upload the .html to eLC by **Monday, Feb 23 11:59 pm**.  
