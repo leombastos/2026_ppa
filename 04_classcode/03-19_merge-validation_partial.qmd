@@ -1,0 +1,324 @@
+---
+title: "Merging layers and validation"
+format: html
+---
+
+# Learning Objectives  
+Today's objectives are to:  
+- **Import** the processed (cleaned and interpolated) layers
+
+- Spatially **join** the layers above into one object  
+
+- Validate the spatial-temporal stability zones  
+
+# Setup  
+```{r }
+# Packages
+library(dplyr)
+library(tidyr)
+library(readr)
+library(sf) #vector manipulation
+library(ggplot2)
+library(viridis)
+library(ggthemes)
+library(patchwork) #combining multiple plots
+library(forcats)
+```
+
+```{r defining map theme}
+mytheme_map <- 
+  theme_map()+
+  theme(legend.position = "right",
+        panel.background = element_rect(fill="gray80",
+                                        color=NA),
+        plot.background = element_rect(fill="gray80",
+                                       color=NA),
+        legend.title = element_text(size=14),
+        legend.text = element_text(size=12))
+
+```
+
+# Data import  
+Let's import the layers we have produced until this point, including:  
+- Spatial-temporal yield stability zones    
+
+- Terrain variables (elevation, slope, aspect, flow direction)  
+
+- Soil ECa (0-30 and 0-90 cm layers)  
+
+```{r sty_v}
+sty_v  
+
+sty_v
+```
+
+```{r terrain_v}
+terrain_v  
+
+terrain_v
+```
+
+```{r eca_v }
+eca_v 
+
+eca_v
+```
+
+```{r boundary_w}
+boundary_w 
+
+boundary_w
+```
+
+# Joining all data together  
+```{r all_v}
+all_v <- sty_v %>%
+  st_join(terrain_v, 
+          join = st_equals, 
+          left = T) %>%
+  st_join(eca_v, 
+          join = st_equals, 
+          left = T) %>%
+  relocate(geometry, .after = last_col())
+
+all_v
+```
+
+# Exporting  
+```{r}
+
+```
+
+# EDA  
+```{r summary}
+summary(all_v)
+```
+Where do we see **NAs**? Why is that?  
+
+```{r sty_map}
+sty_map 
+
+sty_map
+```
+
+
+```{r elev_map}
+elev_map 
+
+elev_map
+```
+
+```{r slope_map}
+slope_map 
+
+slope_map
+```
+```{r aspect_map}
+aspect_map 
+
+aspect_map
+```
+
+```{r eca30_map}
+eca30_map 
+
+eca30_map
+```
+
+```{r eca90_map}
+eca90_map 
+
+eca90_map
+```
+
+```{r all maps}
+(sty_map + eca30_map + eca90_map) /
+  (elev_map + slope_map + aspect_map)
+
+ggsave("../output/allmaps.png",
+       width = 10,
+       height = 5
+)
+```
+
+Just by looking at the maps, does it seem like there may be variables correlated with stability zones?  
+
+
+# Validation  
+Now let's validate the stability zones with the terrain and ec data layers.  
+
+For that, let's start exploring using boxplots.  
+
+```{r boxplots}
+all_v %>%
+  mutate(stclass = factor(stclass,
+                          levels = c("low-stable",
+                                     "medium-stable",
+                                     "high-stable",
+                                     "unstable")
+  )) %>%
+  dplyr::select(-flowdir) %>%
+  pivot_longer(cols = elev_m:eca90_dsm) %>%
+  mutate(name = factor(name,
+                       levels = c("elev_m",
+                                  "slope",
+                                  "aspect",
+                                  "eca30_dsm",
+                                  "eca90_dsm")
+  )) %>%
+  ggplot(aes(x=stclass, 
+             y = value))+
+  geom_boxplot(aes(fill = stclass))+
+  scale_fill_viridis_d(option="C")+
+  facet_wrap(~name, scales = "free_y")+
+  theme(axis.text.x = element_text(angle = 45,
+                                   hjust = 1),
+        legend.position = "none",
+        axis.title = element_blank())
+```
+
+Visually, what can we infer?  
+
+- For elevation, which stability class seems to have greater values?  
+
+- What about for slope?  
+
+- What about aspect?  
+
+- What about for eca shallow?
+
+- What about for eca deep?  
+
+These are just visual hypothesis.  
+
+How can we statistically assess if the boxplots are different across stability classes?  
+
+Using **Analysis of variance (ANOVA)**.
+
+We are not going to learn this step-by-step as that is beyond the scope of this class. However, you will find below code that, iteratively for each field variable (elevation, ec, etc.):    
+
+- runs ANOVA explained by the different stability classes  
+- extracts ANOVA table to check significance  
+- extracts ANOVA model means  
+- performs and extracts pairwise comparisons with letter separation  
+
+
+
+```{r ANOVAs}
+#install.packages("emmeans")
+#install.packages("multcomp")
+#install.packages("multcompView")
+#install.packages("purrr")
+#install.packages("car")
+
+library(emmeans)
+library(multcomp)
+library(purrr)
+library(car)
+
+anovas <- all_v %>%
+  dplyr::select(-flowdir) %>%
+  pivot_longer(cols = elev_m:eca90_dsm) %>%
+  group_by(name) %>%
+  nest() %>%
+  mutate(mod = map(data,
+                   ~lm(data = .x,
+                       formula = value ~ stclass
+                   )
+  )) %>%
+  mutate(anova = map(mod,
+                     ~Anova(.x))) %>%
+  mutate(cld = map(mod,
+                   ~emmeans(.x, ~stclass) %>%
+                     cld(reversed = T, 
+                         alpha = .05,
+                         Letter = letters) %>%
+                     as.data.frame() %>%
+                     mutate(letter = trimws(.group))
+  )) %>%
+  unnest(cld) %>%
+  ungroup() %>%
+  mutate(name = factor(name,
+                       levels = c("elev_m",
+                                  "slope",
+                                  "aspect",
+                                  "eca30_dsm",
+                                  "eca90_dsm")))
+
+
+anovas
+
+```
+
+```{r boxplots and letters}
+all_v %>%
+  mutate(stclass = factor(stclass,
+                          levels = c("low-stable",
+                                     "medium-stable",
+                                     "high-stable",
+                                     "unstable")
+  )) %>%
+  dplyr::select(-flowdir) %>%
+  pivot_longer(cols = elev_m:eca90_dsm) %>%
+  mutate(name = factor(name,
+                       levels = c("elev_m",
+                                  "slope",
+                                  "aspect",
+                                  "eca30_dsm",
+                                  "eca90_dsm")
+  )) %>%
+  ggplot(aes(x=stclass, y = value))+
+  geom_boxplot(aes(fill = stclass))+
+  facet_wrap(~name, scales = "free_y")+
+  geom_label(data = anovas,
+             aes(x = stclass,
+                 y = emmean,
+                 label = letter))+
+  scale_fill_viridis_d(option="C")+
+  theme(axis.text.x = element_text(angle = 45,
+                                   hjust = 1),
+        legend.position = "none",
+        axis.title = element_blank())
+
+```
+
+High-stable areas have:  
+- elevation: 
+- slope: 
+- aspect: 
+- eca shallow: 
+- eca deep: 
+
+Low-stable areas have:
+- elevation:   
+- slope: 
+- aspect: 
+- eca shallow: 
+- eca deep: 
+
+Unstable areas have:  
+- elevation: 
+- eca shallow:  
+- eca deep:  
+- slope:  
+- aspect:  
+
+
+# Quiz - Go to eLC 
+
+# Summary  
+Today we:  
+- Brought in all processed layers, from yield to eca.  
+- Joined these in one object and exported it for future use  
+- Validated stability zones  
+
+# Next steps  
+Next, we will create management zones based solely on terrain and ec variables.  
+
+
+
+
+
+
+
+
