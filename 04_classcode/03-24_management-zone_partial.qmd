@@ -1,0 +1,397 @@
+---
+title: "Creating and validating zones"
+format: html
+---
+
+# Learning Objectives  
+Today's objectives are to:  
+- **Import** the joined layers
+
+- Perform a clustering analysis called **k-means** to create zones  
+
+- **Assess** how variables are impacting different zones  
+
+- **Validate** zones with yield spatial-temporal stability areas  
+
+# Setup  
+```{r setup }
+#| message: false
+#| warning: false
+
+#install.packages("factoextra")
+#install.packages("NbClust")
+#install.packages("ggpubr")
+
+# Packages
+library(dplyr)
+library(tidyr)
+library(readr)
+library(sf) #vector manipulation
+library(ggplot2)
+library(viridis)
+library(ggthemes)
+library(patchwork) #combining multiple plots
+library(factoextra)
+library(NbClust)
+library(ggpubr)
+
+```
+
+# Data import  
+```{r all_v}
+all_v 
+
+all_v
+```
+
+```{r boundary_w}
+boundary_w 
+
+boundary_w
+```
+
+
+# EDA  
+```{r summary}
+summary(all_v)
+```
+
+
+# k-means in theory  
+k-means is a unsupervised clustering algorithm that partitions the data into k groups, where k is defined by the user (i.e., you).  
+
+## How does k-mean works?  
+Let's look at the example below:  
+```{r k-means pre-clustering}
+knitr::include_graphics("https://agronomy.netlify.app/img/kmeans0.png")
+```
+> How many groups do we have above?  
+Can start by specifying a number of clusters (k) that makes sense.  
+
+However, sometimes it is **not that easy to visually assess** it if have many variables (each variable adds a dimension, how do you visualize a data set with 10 variables that we want to use for clustering?)
+
+Coming back to this example, here it is clear that k=3, so the **first step of the algorithm is to randomly select** 3 observations in the data set and have them as the cluster centers:  
+```{r k-means step1}
+knitr::include_graphics("https://agronomy.netlify.app/img/kmeans1.png")
+```
+- Once the cluster centers have been created, the algorithm calculates the **distance of all observations to each of the clusters centers**, and 
+
+- each observation of the entire data set is **assigned a cluster membership** to the cluster center (mean) closest to that observation (check this on the plot above).  
+
+- At this point, the algorithm uses all members of a cluster and **recalculates the cluster mean** (not an actual observation in the data as it was on the first step)  
+
+- The algorithm repeats the entire process until **cluster means stabilize**
+
+Let's check the entire process for this example below:
+```{r k-means in action}
+knitr::include_graphics("https://miro.medium.com/max/960/1*KrcZK0xYgTa4qFrVr0fO2w.gif")
+```
+
+## k-means properties  
+k-means:  
+- Is used for clustering (e.g., management zone creation)  
+- Is an **unsupervised** analysis (no outcome/response/y on a `y ~ x` formula)    
+- Only takes **predictors** (i.e., explanatory variables/x on a `y ~ x` formula).    
+- Predictors need to be **numerical**  (good bye flowdir)  
+
+## k-means shortcomings  
+k-means is useful when clusters are circular (not in a spatial context, but in a x vs. y plot context), but can fail badly when clusters have **odd shapes or outliers**.  
+
+Let's check how k-means (first column below) compares to other clustering algorithms (remaining columns) in classifying data sets with different shapes (rows):  
+```{r clustering algorithms comparison}
+knitr::include_graphics("https://miro.medium.com/max/1400/1*oNt9G9UpVhtyFLDBwEMf8Q.png")
+
+```
+> So, can we always use k-means for clustering?  
+
+However, it can be **difficult to visually assess clustering performance on data sets with many predictors** (remember, each variable adds one dimension, our brain can make sense of 4-5 dimensions max).  
+
+**The curse of dimensionality!**
+
+We can make use of some machine learning techniques like data train/validation/test splits and select model that most accurately predicts new data (beyond the scope of our class).  
+
+# k-means in practice  
+## Data prep for k-means  
+Before running k-means, we need to make sure that our data:  
+- **does not contain NA values** (k-means doesn't handle NAs and just throughs an error). Even a single cell with NA will cause issues. 
+
+- only contains **numerical columns** (k-means doesn't handle categorical variables)  
+
+- is **standardized**, so variables with large magnitude don't disproportianlly imapct the results over variables with smaller magnitude (e.g., slope 0-7% while aspect 0-360 degrees, see summary below).
+
+```{r}
+summary(all_v)
+```
+
+
+```{r @ all_v_n}
+all_v_n 
+  # Dropping NA cells
+
+  # Selecting variables of interest
+
+  # Standardizing
+
+all_v_n
+```
+
+## Defining k  
+We need to define the number of clusters we want.  
+Let's try 4.  
+
+```{r kmeans initial model }
+mod_km 
+
+mod_km
+```
+The argument `nstart` defines how many times the algorithm should be run. This is important because of the random nature of selecting the observations on the first step. Having nstart=10 runs the model 10 times and avoids an unfortunate initial random selection that ends up creating clusters that do not represent the true data groups.  
+
+With **k=4**, our between/total SS was 60.8% (greater the better).    
+Let's try **k=3** and see what happens: between/total SS was ...%.  
+
+What about **k=10**? between/total SS was ...%.
+
+> So let's just select k=10, right?  
+
+The thing is that increasing k will always increase between/total SS.  We need to find the **sweet spot** where we have **enough ks that represent the actual groups within our data**, but no more that that.
+
+Also, think in a **PA application**. If your field really is highly variable and requires a large number of zones (i.e., k=10), then it is what it is. But if your field only truly has 2-3 zones, creating 10 zones adds extra complexity for the grower without really bringing the benefits (because 2-3 zones would've sufficed).
+
+So how do we **find the best k** value for a given data set?    
+
+## Finding k  
+Since the choice of k can be subjective, we will need to find an **objective** way to select the value of k that most properly represents our data set.  
+
+There are different tests and metrics that can be used to select k.  
+All of them run k-means with k ranging from 1 to 10 (in our case), and assess how much information is gained by adding each of the extra groups beyond 1.  
+
+Let's explore a few of these metrics:
+```{r finding k - wss method}
+# Total error x k
+
+```
+
+```{r finding k - silhouette method}
+# Silhouette width
+fviz_nbclust(all_v_n %>%
+               st_drop_geometry(), 
+             method = "s",
+             k.max = 10,
+             FUNcluster = kmeans) #2
+
+```
+What if different metrics give you a different recommendation on k?  
+
+We can compute multiple metrics, and select the k value recommended by the majority:
+
+**NOTE**: the code below took 5 minutes to run on my computer. **DO NOT RUN IT IN CLASS!**. You can run it later to check the result if you wish.  
+```{r finding k - multi-metric vote}
+# Voting from 26 indices  
+bestk <- NbClust(all_v_n %>%
+                   st_drop_geometry(),
+                 distance = "euclidean", 
+                 method ="kmeans", 
+                 index= "all",
+                 min.nc = 2, 
+                 max.nc = 6)
+
+fviz_nbclust(bestk) # 13 tests proposed 2 as best
+
+```
+
+
+Let's go with 2 clusters:
+```{r @ mod_km2 }
+mod_km2 
+
+mod_km2
+```
+
+# Exploring clusters  
+Let's save cluster membership as a column in our data, and bring back the geometry so we can map it.  
+```{r @ zone_df }
+zone_df 
+  # Adding cluster membership column
+
+zone_df
+
+
+```
+
+
+```{r cluster map}
+
+```
+
+# Smoothing zones  
+```{r what is a focal window?}
+knitr::include_graphics("https://r.geocompx.org/images/04_focal_example.png")
+
+```
+
+```{r grid_r}
+library(stars)
+# grid in vector format
+grid_r <-  boundary_w %>%
+  st_make_grid(cellsize = 10) %>%
+  st_as_sf() %>%
+  st_rasterize(dx=10, dy=10) %>%
+  st_crop(boundary_w)
+```
+
+
+```{r smoothing as raster}
+library(starsExtra)
+library(gstat)
+
+zone_s 
+  # Transforming from polygon to point
+
+  # Transforming from geometry to xy (needed by the focal function)
+
+  # Transforming from point (vector) to raster
+
+  # Applying focal filter
+
+  # Transforming from raster back to vector
+
+  # Interpolating to fill to boundary
+
+  # Transforming from raster back to vector
+
+  # Rounding  
+
+  # Adjusting cluster id from numeric to factor
+
+zone_s
+
+
+```
+
+```{r smoothed plot}
+zone_s %>%
+  ggplot()+
+
+    geom_sf(data = boundary_w, fill=NA)+
+  scale_fill_colorblind()+
+  labs(title="Smoothed zones, 5x5, mean")+
+  theme_map()+
+  theme(plot.title = element_text(color="blue"))
+
+ggsave("../output/zonesmoothed_5x5_mean.png",
+       width = 3, 
+       height = 4)
+```
+
+How are clusters affected by the variables used to create them?  
+
+```{r}
+zone_s_df 
+
+zone_s_df
+
+zone_s_df %>%
+  summary
+```
+
+
+```{r cluster x variable boxplots}
+zone_s_df %>%
+  dplyr::select(-stclass) %>%
+  pivot_longer(cols = elev_m:eca90_dsm) %>%
+  ggplot(aes(x=cluster_f, y=value, color=cluster_f))+
+  geom_boxplot(show.legend = F)+
+  scale_color_colorblind()+
+  facet_wrap(~name, scales="free_y", ncol=3)+
+  stat_compare_means(label = "p.format",
+                     hjust = -.1,
+                     vjust=1)+
+  theme(legend.position = "none")
+```
+
+> Based on the plots above and what we established about high- and low-stable classes in the previous exercise, which cluster do you expect that will be higher yielding? Why?    
+
+
+
+
+
+# Validating clusters  
+Ok, so we have 2 clusters that are significantly different based on the variables we used to create them. Great!  
+
+> What does that mean for yield though? 
+> Are these two clusters creating different yield levels?  
+> How can we test that?  
+
+
+
+```{r clusters and standardized yield}
+zone_s_df %>%
+  pivot_longer(cols = sy17:sy20) %>%
+  ggplot(aes(x=cluster_f, y=value, color=cluster_f))+
+  geom_boxplot(show.legend = F)+
+  scale_color_colorblind()+
+  facet_wrap(~name, scales="free_y", ncol=3)+
+  stat_compare_means(label = "p.format",
+                     hjust = -.1,
+                     vjust=1)+
+  theme(legend.position = "none")
+
+```
+
+```{r clusters and mean yield and cv }
+zone_s_df %>%
+  pivot_longer(cols = c(mean_pixel, cv_pixel)) %>%
+  ggplot(aes(x=cluster_f, y=value, color=cluster_f))+
+  geom_boxplot(show.legend = F)+
+  scale_color_colorblind()+
+  facet_wrap(~name, scales="free_y", ncol=3)+
+  stat_compare_means(label = "p.format",
+                     hjust = -.1,
+                     vjust=1)+
+  theme(legend.position = "none")
+
+```
+
+It seems like cluster .... has higher CV and lower yield, and cluster ... has lower CV and greater yield.  
+
+```{r contingency table}
+zone_s_df %>%
+  group_by(stclass) %>%
+  mutate(N=length(stclass)) %>%
+  group_by(cluster_f, stclass, N) %>%
+  tally() %>%
+  mutate(prop=(n/N)*100) %>%
+  mutate(prop=round(prop,0)) %>%
+  ggplot(aes(x=cluster_f, 
+             y=prop, 
+             fill=cluster_f))+
+  geom_col(position="dodge", color="black")+
+  scale_fill_colorblind()+
+  facet_grid(~stclass )+
+  geom_text(aes(label=paste0(prop,"%"), y=prop+5))+
+  theme(legend.position = "none")
+
+```
+
+I suppose we can call cluster ... as high yield and cluster ... as lower yield, right?  
+
+# Exporting clusters  
+```{r exporting clusters}
+zone_s_df 
+```
+
+# Summary  
+Today we:  
+- Learned about the k-means algorithm  
+- Found the best k for our data set  
+- Created k=2 zones  
+- Explored the main zone drivers  
+- Validated zones with yield spatial-temporal stability areas  
+- Explored the main yield stability drivers  
+
+# Next steps  
+To wrap up this entire exercise, the next steps will be to:  
+- decide how to handle spatial-temporal stability  
+- create zone-specific variable rate recommendations  
+
+# Assignment  
