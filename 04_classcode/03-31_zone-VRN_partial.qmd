@@ -1,0 +1,255 @@
+---
+title: "Zone-based Variable rate nitrogen prescription"
+output: html_document
+---
+
+# Learning objectives  
+The learning objectives for this exercise are to:  
+  - Learn where to find crop-specific nutrient recommendations  
+  - Understand what information is needed to recommend N in cotton   
+  - Estimate zone-specific cotton yield potential  
+  - Calculate zone-specific total N recommendation 
+  - Calculate zone-specific side-dress variable N rate recommendation  
+  - Calculate total amount of fertilizer to order  
+  - Export recommendation to file to be used in a variable rate controller  
+
+# Introduction  
+We are going to create a recommendation to apply variable rate nitrogen (N) fertilizer in **cotton**, with a **different in-season side-dress rate** for each zone.    
+
+> How do we know how much N cotton needs (or really, how do we know how much of any given nutrient any crop needs)?  
+
+A few sources of this type of information would be **research papers** and **extension publications**.  
+
+Normally (in the US, at least), crop-specific nutrient recommendations are available through extension publications.
+
+A quick Google search on **"cotton nutrient recommendation in Georgia"** (notice the specificity of crop and state in the key words, important as each state would have their own recommendation algorithm for a given crop) returns a few results.
+
+For Georgia, UGA publishes annually the **"Cotton Production Guide"**, which contains not only nutrient but all sorts of management recommendations for cotton. The UGA 2023 Cotton production guide can be found [here](https://secure.caes.uga.edu/extension/publications/files/pdf/AP%20124-3_1.PDF).
+
+Pages 8 and 9 of the guide have information on N in cotton, including a table relating yield potential with N rate.  
+
+From that table and accompanying text on the guide, we can see that cotton total N rate:  
+- Depends on **yield potential**  
+- Should be **adjusted in + or -25%** in certain cases (e.g., cotton following cotton)    
+- Should be **split-applied**  
+
+UGA has this same information as a web tool called [UGFertEx](https://aesl.ces.uga.edu/calculators/ugfertex/). Let's explore it.
+
+- Go on `Inputs` tab  
+- On `Crop` select `cotton`  
+- On `Soil` select `Coastal Plain`  
+- On `Prior Crop` select `Cotton`  
+- Check the `Irrigated` box as this field is irrigated 
+- Play around with a value in `Yield Goal`. Change the default value of 1000 lbs (lint) to 500. Then change it to 1500. What happens with recommended N rate as yield potential increases?    
+
+## Quiz - go to eLC  
+
+---
+
+# Setup  
+```{r setup}
+# Packages
+library(dplyr)
+library(tidyr)
+library(readr)
+library(sf) #vector manipulation
+library(ggplot2)
+library(viridis)
+library(ggthemes)
+
+```
+
+```{r defining map theme}
+mytheme_map <- 
+  theme_map()+
+  theme(legend.position = "right",
+        panel.background = element_rect(fill="gray80",
+                                        color=NA),
+        plot.background = element_rect(fill="gray80",
+                                       color=NA),
+        legend.title = element_text(size=14),
+        legend.text = element_text(size=12))
+
+```
+
+
+```{r yieldic17}
+yieldic17 
+  
+yieldic17
+
+summary(yieldic17)
+```
+
+
+```{r yieldic19}
+yieldic19 <- read_sf("../../07 yield monitor/data/yield19_interpolated.geojson") %>%
+  dplyr::select(yield19_lbac = ipyield_lbac, geometry)
+
+yieldic19
+
+summary(yieldic19)
+```
+
+```{r yieldic20}
+yieldic20 <- read_sf("../../07 yield monitor/data/yield20_interpolated.geojson") %>%
+  dplyr::select(yield20_lbac = ipyield_lbac, geometry)
+
+
+yieldic20
+
+summary(yieldic20)
+```
+
+```{r zone_st}
+zone_st 
+
+zone_st
+```
+
+# Wrangling  
+```{r Merging yield and zones}
+zone_yield <- zone_st %>%
+  st_join(yieldic17,
+          join = st_equals, 
+          left = T
+  ) %>%
+  st_join(yieldic19,
+          join = st_equals, 
+          left = T
+  ) %>%
+  st_join(yieldic20,
+          join = st_equals, 
+          left = T
+  ) 
+
+zone_yield
+```
+
+# VRN  
+Below, we will
+- Calculate zone-specific yield potential (as the 90% quantile of the yield distribution of all 3 years together)  
+
+- Calculate the total N rate (lbs N/ac) needed with **UGFertex**
+- Adjust it in +25% assuming that we are following cotton  
+- Adjust it in 2/3 to be applied side-dress (1/3 applied at planting)  
+- Define our N source as urea-ammonium nitrate (UAN) 28% N  
+- Calculate the total product rate (gal UAN/ac)  
+
+```{r zone yield potential}
+zone_yield %>%
+  pivot_longer(cols = yield17_lbac:yield20_lbac) %>%
+  ggplot(aes(x = value, fill = zone))+
+  geom_density(alpha = .6)
+
+```
+
+```{r vrn calculation }
+vrn 
+  # Defining yield potential  
+
+    # Stop here, include these on plot above
+
+  # Go on UGFertex and enter these yield potential values, assuming cotton as previous crop, irrigated, coastal plain soil. What total N did you get for zone high yield? What about zone low yield?
+  
+  # We can also calculate those using the formula below, which is the formula used behind the scenes on UGFertex:
+  mutate(totalnrate_lbsac) %>% 
+  # Adjust total rate in 25% upwards for following cotton
+  mutate(totalnrate_adj_lbsac) %>%
+  # Calculate pre-plant rate
+  mutate(pp_totalnrate_adj_lbsac) %>%
+  # Calculate ~2/3 as portion to be applied in-season (Assuming a single pre-plant rate was applied to both zones)
+  mutate(is_totalnrate_adj_lbsac) %>%
+  # Calculate product rate when using UAN solution 28% N
+  # UAN 28% has 3 lbs N per gallon of product (see chunk below)
+  mutate(uanrate_galac)
+
+vrn
+
+```
+UAN is a liquid fertilizer, so how do we go from volume of solution to lbs of N?  
+
+> What information do we need?  
+
+
+
+
+
+
+
+
+
+
+We can find this information on the fertilizer label/msds information from manufacturer.  
+
+Normally, UAN 28% density is 10.67 lbs/gal, as we can find from these retailers:  
+- https://www.agricocanada.com/wp-content/uploads/2016/09/agric-101-SDS_Urea-Ammonium-Nitrate-UAN-Solution.pdf  
+-  https://www.cfindustries.com/globalassets/cf-industries/media/documents/safety-data-sheets/uan---north-america/urea_ammonium_nitrate_solution_uan_sds.pdf  
+
+NOTE: UAN is normally sold as 28, 30, or 32%N. Each of them has a different density!  
+
+
+```{r UAN volume to mass of N}
+uan28density_lbsgal <- 10.67
+
+uan28Nconc_pct <- 0.28
+
+uan28_lbsNgal <- uan28density_lbsgal * uan28Nconc_pct
+
+uan28_lbsNgal #~3 lbs N/gal of UAN28%
+
+```
+
+How much UAN28% do we need to have delivered at the field to ensure enough product for application?  
+
+```{r total volume of UAN per area}
+vrn 
+
+  # Will ask for 20% more than recommended to have a bit extra 
+
+```
+
+# Rx map  
+```{r vrn vector}
+vrn_v 
+
+vrn_v
+```
+
+```{r vrn plot}
+vrn_v %>%
+  mutate(uanrate_galac=factor(uanrate_galac)) %>%
+  ggplot()+
+
+  
+  labs(title="VRN Rx - UAN 28% rate",
+       fill="UAN rate\n(gal/ac)",
+       color="UAN rate\n(gal/ac)")+
+  mytheme_map
+
+ggsave("../output/VRN.png",
+      width = 4, 
+       height = 4
+       )  
+```
+
+# Exporting  
+We are going to export as **shapefile** as it is the most commonly accepted format in variable rate controllers.  
+
+Since we are exporting as shapefile, let's create a sub-folder inside `output` called `VRN` to have all the associated files saved together.  
+
+```{r exporting}
+vrn_v 
+```
+
+# Summary  
+In summary, today we:  
+- Understood where to look for information on crop and nutrient-specific recommendations  
+- Defined yield potential for each zone  
+- Calculated VRN in both lbs N/ac and gallons UAN38/ac  
+- Exported VRN Rx as a shapefile  
+
+
+
+
+

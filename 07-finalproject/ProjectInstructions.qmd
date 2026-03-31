@@ -1,0 +1,244 @@
+---
+title: "Programming PA 2026 - Final Project"
+format:
+  html:
+    embed-resources: true
+    toc: true
+    theme: cerulean
+author: FIRST LAST
+---
+
+# Field assignment  
+50-ac field:  
+  - Dare  
+  - Comfort  
+  - Brendan    
+  - Priscila  
+
+Beach field:  
+  - Matteo  
+  - Chinonso  
+  - Ashton  
+
+# A. Introduction  
+After taking the Programming Precision Ag course at UGA, you decided it was time to open your own PA consulting business to offer science-based PA services to producers in Georgia.  
+
+Your first client is Mr. McCormick. He wants to experiment with PA, but has seen his neighbors use out-of-the-box PA services that don't seem to work reliably. He heard about your science-based PA approach, and was very interested in trying out your services in one of his **irrigated** fields. 
+
+Having himself graduated from UGA, Mr. McCormick is very curious about the steps you will be taking and how decisions are made in your workflow.  
+
+Mr. McCormick is interested to learn whether his field has different zones related to yield potential, and if he should use variable rate fertilizer application to reduce costs and improve efficiencies in his operation.  
+
+Mr. McCormick provides you with 4 layers of information from his field: 
+
+- Field boundary  
+- Gridded soil data collected in 2025  
+- Soil ECa (in dS/m) and elevation collected in 2025     
+- Yield data:  
+  - Corn yield in 2016  
+  - Soybeans yield in 2017  
+  - Cotton yield in 2023  
+  - Cotton yield in 2024 (for 50-ac field only)  
+
+Mr. McCormick also provides you with the following history of his field:  
+
+- The next crop to be planted will be corn   
+
+
+# B. Directions  
+## Personal information  
+Fill in your first and last name on the YAML of this script under the `author` option.  
+
+Add your first and last name to the end of this .qmd script file name.  
+
+## Data  
+All data layers above were uploaded to GitHub and can be found in folder `07-finalproject`.  
+
+All layers are in shapefile format.  
+
+## Set up  
+Because this is data and analysis for a different field from the one we did in class, you **should not** use the same RStudio project and folders from class.  
+
+As a suggestion, you could follow these steps:  
+
+- On your overall course folder, create a new folder called `finalproject-INITIALS`.  
+
+- Go inside this folder, and create the sub-folders `data`, `code` and `output`.  
+
+- Download the class GitHub repository (https://github.com/leombastos/2025_ppa). 
+
+
+- Copy the data files from `07-finalproject` and for your **specific field** and paste them inside your `data` folder.  
+
+- Copy the `ProjectInstructions.qmd` file and paste it inside your `code` folder.  
+
+- Launch RStudio.   
+
+- Create a New Project, and have it created at the level of your `finalproject-INITIALS` folder.  
+
+## Workflow  
+You are required to follow a similar workflow from what we did in class:  
+
+- Interpolate soil grid data for P, K, and pH  
+- Wrangle and clean yield data  
+- Interpolate cleaned yield data  
+- Perform yield stability analysis  
+- Use elevation and create all the interpolated terrain variables we did in class  
+- Interpolate soil ECa for the two different depths  
+- Bring all the layers together to create zones using k-means  
+- Smooth zones, validate them with terrain, soil ec, and yield variables  
+- Create a (possibly variable rate) N prescription  
+
+Make sure to add the map elements of **scale and north arrow** to every map you make.  
+
+Remember that you will need to adapt our class code to match these new data sets, which may be of different types and have some different column names.  
+
+You can and should use our class code as a reference. However, **make sure you understand what each step and chunk is doing**. Simply copying and pasting and trying to run everything without thinking through will for sure cause lots of code errors, and take away from you the opportunity to revise what we learned in a concise way.  
+
+I would suggest you have a separate quarto script for each step (as we did in class).  
+
+In class, we created a whole new RStudio project for each step. For the final project, you may use just one RStudio project (as explained above), but having different scripts in the `code` folder for the different steps.  
+
+## Troubleshooting  
+You will for sure run into code issues.  
+This is common and expected, and part of the learning process.  
+
+While this is an individual project, I do encourage all students to help each other, especially as you will likely run into similar problems.  
+
+For that to work, we will be using **GitHub** to ask and answer questions.  
+
+ALL QUESTIONS should be asked in our course GitHub page (https://github.com/leombastos/2025_ppa) under "Issues". **Please do not use email for asking questions**.
+
+Make sure to **"Watch"** the repository so you get notified when someone posts on Issues.  
+
+> I anticipate all of you will have multiple questions. The goal with using GitHub is that you can help each other. You will be graded for participation both in asking questions on GitHub and also helping others with their questions.  
+
+With that, when you have issues running code, here are a few resources you can use, in chronological order:  
+
+- **Yourself**: Read the error message, see if you can interpret it and understand what is going on. A message like "Error: object yield could not be found" is self-explanatory.    
+- **Google**: Sometimes just copying an error message and pasting on Google can help you find posts with the answer.  
+- **Peers**: ask your classmates using GitHub.  
+- **Teaching assistant/Me**: after you have gone through all the sources above without success, the TA and I will certainly be glad to assist you. I want us to be the last resource you use because that's how it will be after our class is finished: I will be available to assist you in anything R-related in your career, but you will also need to attempt solving them before you reach out.  
+
+## Turning it in  
+**Failing to follow each and all instructions will make you lose points**.  
+
+- You will turn in **this script** to me.  
+
+- Make sure you do NOT remove any of my instructions/questions.  
+
+- Make sure that when rendered, your questions appear in the table of contents.  
+
+- In this script, you should NOT run analysis-related code.  
+
+- Use this script to only answer your questions with full sentences (proper grammar will be part of your grade), and to bring in figures and/or tables that you created and exported using the analysis scripts.  
+
+- If you want to bring in this script a **figure** that you created using a different script that exported it to the `output` folder, and assuming this script is in your code folder, you would do so by using the following code:
+
+`![](../output/figure1.png)`
+
+- When creating figures, make sure to add a descriptive title, and that legends are professional and include units.  
+
+- When creating figures and using `color` or `fill`, make sure to use an inclusive, colorblind-friendly palette.  
+
+- If you want to bring in this script a **data frame** (e.g. with a summary) that you created using a different script, you can export that summary as a csv file, and then import it here using a `read_*()` function.  
+
+- Make sure to avoid chunks printing unnecessary messages and warnings. For that, you may use chunk options as we showed in class, e.g. `#| warning: false` at the beginning of the chunk. 
+
+- Make sure to avoid long prints. You can use the function `head()` to solve that.  
+
+- If/when you need to use code in this script, make sure it does not appear on the rendered version. Think of this script as what you would turn in to your customer, who doesn't understand or care about programming languages and their code.  
+
+- Make sure you render it and check how it looks. If things look weird on the rendered version, fix them so they look right and professional. 
+
+# C. Grading  
+There are some opportunities for **extra credit**. Extra credit questions, if answered correctly, will replace the grade of other answers that you may have missed.   
+
+You will be graded based on:  
+
+- correctly answering questions (make sure you answer all parts of a question for full credit)  
+- following all directions  
+- proper grammar  
+- professionalism of your rendered file  
+- using GitHub both to ask questions and help others  
+- turning in on time  
+
+# D. Questions  
+Once you get started and as you progress in the project tasks, Mr. McCormick is following closely your work and has multiple questions for you:
+
+## 1. Show a map of the interpolated soil gridded variables of P, K, and pH. Provide an interpretation. On your color legend, use the color brakes according to sufficiency levels for corn.  
+
+
+## 2. What is the number of observations, minimum, mean, maximum, and standard deviation for the **raw** yield data (in bu/ac)? Show Mr. McCormick a plot with the density distribution of the **raw** yield data for each year available.  
+
+
+## 3. How many meters of negative buffer did you use for this field? Was that enough to remove low yielding data points near the field border? Show Mr. McCormick a map with the field border, points colored by raw yield data from one of the years, and the buffer outline. 
+
+
+## 4. What is the number of observations, minimum, mean, maximum, and standard deviation for the **cleaned** yield data (in bu/ac)? Show Mr. McCormick a plot with the density distribution of the **cleaned** yield data for each year.  
+
+
+## 5. When creating a grid for interpolation, what grid cell size did you use? Why did you select this size?  
+
+## 6. Show Mr. McCormick a map of the cleaned interpolated yield data for each year (include the field boundary).  
+
+## 7. Create yield spatial-temporal variability classes using yield data from all available years. Include here the maps for standardized yield mean, coefficient of variation, and classes. What proportion of pixels were found within each class?  
+
+## 8. Show Mr. McCormick a map of the interpolated terrain variables (include the field boundary).  
+
+## 9. Show Mr. McCormick a map of the interpolated soil ECa variables (include the field boundary).  
+
+## 10. Use all interpolated field-related variables (soil P, K, pH, soil EC at two depths, soil terrain properties) to create zones. How many clusters/zones did you decide that this field needs? What metric did you use to make this decision? (check the `Code tips` section below for a note on this).  
+
+## 11. When smoothing clusters, play around with a few matrix sizes (3x3, 5x5, 7x7) and summarizing functions (mean, median, maximum), then choose one option to continue. Show maps for all combinations of window size and summarizing function. After experimenting with them, which matrix size and summarizing function did you decide to keep? Why? Show Mr. McCormick a map of the final smoothed clusters/zones below (include field boundary).  
+
+## 12. Use the standardized mean yield (calculated on the spatial-temporal stability analysis) data to validate the clusters. Show below a boxplot of standardized yield data mean for all years for the different clusters. Based on these boxplots, how would you characterize each cluster (e.g., cluster x is high yielding zone and cluster y is low yielding zone). **Extra credit**: include the analysis of variance letter separation on the boxplots.   
+
+## 13. What was the proportion of high and low yield areas for each of the zones?  
+
+## 14. Now that we know the yield class of each cluster, how are they affected by soil P, K, pH, soil ECa at different depths, and by elevation (e.g., high yield cluster has higher/lower eca, etc.)? Include below a boxplot to explore those relationships similarly to how we did in class. **Extra credit**: include the analysis of variance letter separation on the boxplots.   
+
+
+## 15. Were you able to validate clusters with temporal yield data? Explain why/why not.  
+
+## 16. What was the yield potential (in bu/ac) of each zone? How did you determined it?   
+
+
+## 17. How did you determine the total N rate (what algorithm, from which website)?  
+
+## 18. What was the in-season N rate (in lbs N/ac) of each zone? Show below a map with this information (include field boundary).  
+
+
+## 19. What was the in-season UAN28% rate (in gal/ac) of each zone? Show below a map with this information (include field boundary).  
+
+## 20. Based on the answers above, would you recommend Mr. McCormick to treat his field using variable rate N application? Why/why not? Explain as if you were speaking with him.  
+
+## 21. Regardless of your recommendation above, Mr. McCormick will still need to apply N to this field. How many gallons of UAN28% would Mr. McCormick need to order for his in-season N application for this field?  
+
+## 22. Download the growing-season mean GNDVI from Sentinel-2 for each year of yield data. For soybeans and corn, define the growing season dates as from May 1st through October 15. For cotton, define the growing season from June 1st through November 30. Use the growing-season mean GNDVI to create remote-sensing based spatial-temporal stability classes. Include here the map of the standardized mean GNDVI, CV, and of spatial-temporal classes. Also include here the previous yield-based spatial-temporal stability class map. How do they compare? How well did the remote sensing-based analysis compared to the yield-based analysis?   
+
+## 23. **Extra credit** Tell me what was your most favorite part of this entire course. Explain in detail why.  
+
+## 24. **Extra credit** Tell me what was your least favorite part of this entire course. Explain in detail why.  
+
+
+# E. Submitting and deadline  
+All I need is the rendered version of **this script**. 
+
+Submit your file on eLC by **April 29** 11:59 pm.
+
+# F. Code tips  
+## Data import  
+- Check that the path you are specifying is correct  
+- Check that you are using the proper function based on the file type (read_csv for csv files, read_sf for shape files/vector data)  
+- To import a shapefile, specify the `.shp` file in the path inside `read_sf()` function.   
+
+## Troubleshooting a pipe stream  
+- If you run a pipe stream (multiple functions connected by multiple pipes) and there is error in the code, comment off the first pipe, run it. If problem did not appear, uncomment this first pipe, comment off second pipe, run it. Keep doing this until you find what function in the pipe is causing the error. That will make it easier to pinpoint where the error is coming from and address it.  
+
+## K-means: finding k  
+- When defining the proper number of clusters (k) for this data, only use the techniques `WSS` and `Silhouette width`. **Do not** attempt to run the analysis code that contains multiple indices (function `NbClust()`). I tried that on my computer, and for some reason it was not working properly, and it also takes a long time to run which was making my RStudio crash.  
+
+
+## Exporting spatial data to file  
+- To export a spatial vector to file, we use the function `write_sf()`. Don't forget to change one of its arguments to make sure you don't append (duplicate the number of rows) in case you already have the same file saved from a previous run: `write_sf(delete_dsn = T)`.  
