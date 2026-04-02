@@ -36,7 +36,7 @@ Mr. McCormick provides you with 4 layers of information from his field:
 - Soil ECa (in dS/m) and elevation collected in 2025     
 - Yield data:  
   - Corn yield in 2016  
-  - Soybeans yield in 2017  
+  - Soybeans yield in 2017    
   - Cotton yield in 2023  
   - Cotton yield in 2024 (for 50-ac field only)  
 
@@ -65,7 +65,7 @@ As a suggestion, you could follow these steps:
 
 - Go inside this folder, and create the sub-folders `data`, `code` and `output`.  
 
-- Download the class GitHub repository (https://github.com/leombastos/2025_ppa). 
+- Download the class GitHub repository (https://github.com/leombastos/2026_ppa). 
 
 
 - Copy the data files from `07-finalproject` and for your **specific field** and paste them inside your `data` folder.  
@@ -107,7 +107,7 @@ While this is an individual project, I do encourage all students to help each ot
 
 For that to work, we will be using **GitHub** to ask and answer questions.  
 
-ALL QUESTIONS should be asked in our course GitHub page (https://github.com/leombastos/2025_ppa) under "Issues". **Please do not use email for asking questions**.
+ALL QUESTIONS should be asked in our course GitHub page (https://github.com/leombastos/2026_ppa) under "Issues". **Please do not use email for asking questions**.
 
 Make sure to **"Watch"** the repository so you get notified when someone posts on Issues.  
 
