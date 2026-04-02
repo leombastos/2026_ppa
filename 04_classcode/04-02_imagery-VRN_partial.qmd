@@ -1,0 +1,260 @@
+---
+title: "Imagery VRN"
+format: html
+---
+# Introduction  
+Today's goals are to:  
+
+- Import processed UAV imagery in the form of NDRE  
+- Create a VRN grid  
+- Calculate the required variables for the Holland-Schepers algorithm  
+- Create an imagery-based VRN prescription  
+- Export prescription  
+- Validate VRN application  
+
+# Setup  
+```{r}
+library(tidyverse)
+library(stars)
+library(mapview)
+library(maptools)
+library(ggthemes)
+
+```
+
+```{r pre_ndre}
+pre_ndre 
+
+pre_ndre
+```
+
+```{r plots}
+plots 
+
+
+plots
+```
+Look at the trt column, talk about it.  
+
+`rate_lbac` is the fixed, already applied pre-plant rate.
+
+# EDA  
+
+```{r pre_ndre density}
+pre_ndre 
+
+```
+
+```{r pre_ndre static map}
+pre_ndre_map <- ggplot()+
+  ...
+  scale_fill_viridis_c()+
+  ...  
+  theme_map()+
+  theme(legend.position = "bottom")
+
+pre_ndre_map
+```
+This imagery was collected with a UAV using a multispectral sensor around V12 growth stage in corn.  
+
+Sensor bands were used to calculate NDRE, which is what the map above is showing.  
+
+```{r pre_ndre int map}
+
+```
+Seeing strips running E-W?
+
+```{r plots map}
+
+```
+This was an on-farm study where  
+- Grower: N management according to the conventional practice of that grower (145 lbs N/ac)  
+
+- Reference: high N rate (250 lbs N/ac)
+
+- SENSE: on-the-go variable rate N application with proximal sensor (like we saw in lecture)  
+
+Now, what if the grower has VRN equipment but does not have the proximal active sensor?
+
+Can we just fly the field with a drone and use that data instead?  
+
+We can, but...
+
+...since it is not on-the-go sense and apply, we need to create vrn application cells, like a grid, where the cell width is the equipment width, and the length is a determined length we want to apply a fixed N rate within.  
+
+
+# Creating application grid
+```{r grid_vrn}
+grid_vrn 
+  # Making grid
+
+  # Rotating it to match the field angle
+
+  # Cropping to plots
+
+  # Filtering only SENSE strips (vrn ones)
+
+grid_vrn 
+
+```
+
+# Extracting reference value  
+```{r vrn_ref}
+vrn_ref 
+
+vrn_ref
+```
+
+```{r pre_ndre density and reference}
+pre_ndre %>%
+  as.data.frame() %>%
+  ggplot(aes(x=ndre))+
+  geom_density()+
+  geom_vline(xintercept = vrn_ref, color = "red")
+
+```
+
+# Extracting NDRE from grid
+```{r grid_ndre}
+grid_ndre 
+
+grid_ndre
+
+ggplot()+
+  ...
+  ...
+  scale_fill_viridis_c()+
+  theme_map()+
+  theme(legend.position = "bottom")
+```
+
+Within each vrn cell, we still have multiple pixels (spatial resolution of this image 30 cm = 1 ft). 
+
+Can any VRN equipment change N rate that quickly? Probably not.
+
+Thus, let's go ahead and get the NDRE average for each cell and use that to calculate VRN instead of each pixel.  
+
+# Extracting NDRE average for each grid cell
+```{r grid_ndre_av}
+grid_ndre_av 
+
+ndre_map <- ggplot()+
+  geom_sf(data = grid_ndre_av, 
+          aes(fill = ndre),
+          color = NA)+
+  scale_fill_viridis_c()+
+  theme_map()+
+  theme(legend.position = "bottom")
+
+ndre_map
+```
+
+# Calculating SI  
+```{r si}
+si 
+  # Setting reference
+
+  # Calculating SI 
+
+si
+
+ggplot()+
+  ...
+  scale_fill_viridis_c()+
+  theme_map()+
+  theme(legend.position = "bottom")
+
+```
+
+# Calculating VRN  
+Let's recall the Holland-Schepers VRN formula.
+
+What do we need to calculate VRN?  
+
+- EONR  
+- N credits  
+- SI  
+
+
+```{r vrn}
+vrn 
+  # All in lbs/ac
+  mutate(vrn_lbsac = (... - ... - ...)*(sqrt(((1-si)/0.3))))
+
+vrn
+```
+
+```{r vrn density}
+vrn %>%
+  ggplot(aes(x=vrn_lbsac))+
+  geom_density()
+```
+VRN is ranging from 54 to 277 lbs N/ac. 
+
+```{r vrn_map}
+vrn_map <- ggplot()+
+  ...
+  scale_fill_viridis_c()+
+  theme_map()+
+  theme(legend.position = "bottom")
+
+vrn_map
+```
+
+How does NDRE relate to VRN? What would you expect? 
+
+```{r}
+library(patchwork)
+ndre_map / vrn_map
+```
+
+
+# Exporting to file  
+```{r}
+vrn 
+```
+
+# Checking VRN results  
+This field did actually receive VRN on the same strips that we calculated above.
+
+VRN was applied at V12 in corn (imagery we used above).
+
+We also have imagery at VT for this field, a few weeks after VRN. Let's bring it in and see how the VRN strip responded.  
+```{r post_ndre}
+post_ndre <- read_stars("../data/ndre_post_vt.tif") %>%
+  st_downsample(n = 3) %>%
+  rename(ndre=ndre_post_vt.tif)
+
+post_ndre_map <- ggplot()+
+  ...
+  scale_fill_viridis_c()+
+  coord_equal()+
+  theme_map()+
+  theme(legend.position = "bottom")
+
+post_ndre_map
+```
+
+
+```{r}
+mapview(post_ndre)
+```
+
+
+Let's combine the pre- and post-vrn maps so we can better visualize their differences.
+
+```{r}
+pre_ndre_map / post_ndre_map
+```
+What do you see?  
+
+# Summary
+In this exercise, we:  
+- Imported UAV imagery in the form of NDRE  
+- Extracted reference value
+- Created a VRN grid  
+- Extracted NDRE average values within grid cells
+- Calculated sufficiency index 
+- Calculated VRN  
+- Exported VRN as shapefile  
+- Validated VRN with post-VRN imagery  
