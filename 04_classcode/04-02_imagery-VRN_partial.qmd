@@ -17,7 +17,6 @@ Today's goals are to:
 library(tidyverse)
 library(stars)
 library(mapview)
-library(maptools)
 library(ggthemes)
 
 ```
@@ -87,8 +86,6 @@ We can, but...
 ```{r grid_vrn}
 grid_vrn 
   # Making grid
-
-  # Rotating it to match the field angle
 
   # Cropping to plots
 
