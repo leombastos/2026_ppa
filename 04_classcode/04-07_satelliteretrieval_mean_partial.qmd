@@ -1,0 +1,203 @@
+---
+title: "Satellite mean"
+format: html
+---
+
+# Learning objectives  
+The goals of this exercise are to:  
+  - Understand about the specifics of Sentinel-2  
+  - Develop an API call for a specific field, dates, and bands  
+  - Deploy the API call and get in return the mean GNVDI over the growing season  
+
+# Introduction  
+We will use imagery collected by the Copernicus satellite mission Sentinel-2, by the European Space Agency (ESA).
+
+Sentinel-2 is based on a constellation of two identical satellites in the same orbit (Sentinel-2A and 2B). 
+
+Each satellite carries an innovative wide swath high-resolution multispectral imager with 13 spectral bands for a new perspective of our land and vegetation.  
+
+Sentinel-2 characteristics:  
+
+  - **Spatial coverage**: all land surfaces  
+  
+![](https://sentiwiki.copernicus.eu/__attachments/1687033/Revisit%20scenario%202025.png)
+  - **Temporal resolution**: 5-day revisit time  
+
+
+![](https://sentiwiki.copernicus.eu/__attachments/1687033/figure-5.jpg)
+
+
+  - **Spatial resolution**: 10 to 60 m depending on band  
+  - **Spectral resolution**: 13 bands  
+  
+    - Bands at **10-m** spatial resolution:
+![](https://sentiwiki.copernicus.eu/__attachments/1687033/image-20230605-122808.png)  
+
+    - Bands at **20-m** spatial resolution  
+![](https://sentiwiki.copernicus.eu/__attachments/1687033/image-20230605-122823.png)  
+
+    - Bands at **60-m** spatial resolution  
+    
+![](https://sentiwiki.copernicus.eu/__attachments/1687033/image-20230605-122840.png)  
+
+> If we wanted to calculate a vegetation index at 10-m spatial resolution, which VI (and bands) would you pick?  
+
+VI name:  
+
+Bands needed:  
+
+Sentinel-2 has different **data products** available to query, represening different levels of processing:    
+  - Level 0: raw compressed raw image data, not available to users    
+  - Level 1a: decompressing image data and developing a geometric model, not available to users     
+  - Level 1b: radiometric corrections, not available to users    
+  - **Level 1c**: Top Of Atmosphere (TOA) reflectance images, derived from associated Level-1B products    
+  - **Level 2a**: corrected Surface Reflectance (SR) products from Level-1C products (**this is what we want**)  
+
+# Resources  
+We will access imagery directly from R using an API.  
+Below, you will find resources to interact with the API, about the R package, and documentation about Sentinel-2.  
+
+## REQUIRED!  
+**1. Sign up for an account here: https://dataspace.copernicus.eu/**  
+
+## Optional  
+2. Getting started with openEO R client: https://documentation.dataspace.copernicus.eu/APIs/openEO/R_Client/R.html   
+
+3. openEO R client cookbook: https://openeo.org/documentation/1.0/cookbook/#mask-out-specific-values  
+
+4. Sentinel-2 wiki: https://sentiwiki.copernicus.eu/web/s2-mission#S2-Mission-MSI-Instrument  
+
+Next, let's start the code to retrieve imagery for our cotton field.
+Since we have 3 years of yield data (2017, 2019, 2020), let's retrieve imagery for those years, **starting with 2017**.  
+
+We are able to retrieve images in 2 ways:  
+
+  1. All images available within given dates  
+  2. A summary of the first option, like the mean data across all available images for a date.
+  
+In this exercise, we will do option 2 above (mean of all images).  
+
+# Setup  
+```{r}
+#install.packages("openeo")
+library(openeo)
+library(mapview)
+library(tidyverse)
+library(stars)
+library(sf)
+library(mapview)
+
+```
+
+Importing field boundary
+```{r}
+field 
+
+field
+```
+
+```{r}
+mapview(field)
+```
+
+# Connecting to the API  
+```{r}
+connection <- connect(host = "https://openeo.dataspace.copernicus.eu")
+```
+# Login credentials  
+```{r}
+login() #after running this, go to console and hit ENTER/RETURN on your keyboard to be prompted to browser to login.  
+```
+
+# Starting a process  
+We need to start a process that in the end will be submitted to the cloud server.  
+
+```{r}
+p 
+```
+
+This starting process will be further developed below to include different processing step queries.  
+
+# Setting data retrieval parameters  
+Here we need to determine our query parameters, including:  
+  - **Collection and data product** we want to pull from  
+  - **Spatial extent**  
+  - **Temporal extent**  
+  - **Bands of interest**  
+
+```{r}
+data 
+
+data
+```
+
+# Cloud masking  
+```{r}
+# define filter function to create mask
+filter_function <- function(data, context) {
+  vegetation <- p$eq(data["SCL"], 4) # vegetation is 4
+  non_vegetation <- p$eq(data["SCL"], 5) # non-vegetation is 5
+  # we want to mask all other values, so NOT (4 OR 5)
+  return(p$not(p$or(vegetation, non_vegetation)))
+}
+
+# create mask by reducing bands with our defined formula
+cloud_reduce <- p$reduce_dimension(data = data, 
+                                   reducer = filter_function, 
+                                   dimension = "bands")
+
+# mask the bands data
+cloud_reduced 
+```
+
+# Spectral reducer (GNDVI)  
+```{r}
+
+spectral_reduce 
+```
+
+# Temporal reducer (mean)  
+```{r}
+temporal_reduce 
+
+
+```
+
+# Compiling result  
+```{r}
+result 
+
+```
+
+Up until the chunk above, these all are sent to the server for processing.
+
+Once the processing is done on the server, we download the result (next chunk).
+
+# Downloading result  
+```{r}
+
+```
+
+# Importing result to check
+```{r}
+gndvi_mean 
+
+gndvi_mean
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+# Summary  
+Today, we:  
+  - Learned about Sentinel-2
+  - Created functions to interact with their R API  
+  - Retrieved the mean of the growing season for one field and year  
+
+
