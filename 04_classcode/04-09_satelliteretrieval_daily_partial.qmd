@@ -1,0 +1,253 @@
+---
+title: "Satellite daily"
+format: html
+---
+
+# Learning objectives  
+The goals of this exercise are to:  
+- Develop an API call for a specific field, dates, and bands  
+- Deploy the API call and get in return the **daily** GNVDI imagery over the growing season  
+
+
+# Introduction  
+We are able to retrieve images in 2 ways:  
+
+1. All images available within given dates  
+2. A summary of the first option, like the mean data across all available images for a date.  
+
+On the previous exercise, we downloaded the GNDVI **mean**.
+
+While the mean across the growing season can be quite informative, it is still important to assess the daily imagery available.  
+
+That will allow us to understand crop development speed over time, and which areas may have lagged behind.  
+
+On this script, let's start the code to retrieve **all daily imagery** for our cotton field.  
+
+Since we have 3 years of yield data (2017, 2019, 2020), let's retrieve imagery for those years, **starting with 2017**.  
+
+# Setup  
+```{r}
+#install.packages("openeo")
+library(openeo)
+library(mapview)
+library(tidyverse)
+library(stars)
+library(sf)
+library(mapview)
+
+```
+
+Importing field boundary
+```{r}
+field <- read_sf("../../05_digitizing/output/boundary.geojson") %>%
+  st_transform(crs = 6345) %>%
+  st_buffer(dist = -10) # because values close to and outside the border are normally higher and thus skew color scales when plotting
+
+field
+```
+
+```{r}
+mapview(field)
+```
+
+# Connecting to the API  
+```{r}
+connection <- connect(host = "https://openeo.dataspace.copernicus.eu")
+```
+# Login credentials  
+```{r}
+login() #after running this, go to console and hit ENTER/RETURN on your keyboard to be prompted to browser to login.  
+```
+
+# Starting a process  
+```{r}
+p <- processes()
+```
+
+
+# Setting data retrieval parameters  
+Here we need to determine our query parameters, including:  
+
+- **Collection and data product** we want to pull from  
+
+```{r}
+data <- p$load_collection(id = "SENTINEL2_L2A", 
+                          spatial_extent = field,
+                          temporal_extent = list(
+                            "2017-05-01", # start date
+                            "2017-11-30" # end date
+                          ),
+                          bands = list("B03","B08", "SCL") #B03 = green, B08 = NIR, SCL contains land classification used to remove clouds
+)
+
+data
+```
+
+# Cloud masking  
+```{r}
+# define filter function to create mask
+filter_function <- function(data, context) {
+  vegetation <- p$eq(data["SCL"], 4) # vegetation is 4
+  non_vegetation <- p$eq(data["SCL"], 5) # non-vegetation is 5
+  # we want to mask all other values, so NOT (4 OR 5)
+  return(p$not(p$or(vegetation, non_vegetation)))
+}
+
+# create mask by reducing bands with our defined formula
+cloud_reduce <- p$reduce_dimension(data = data, 
+                                   reducer = filter_function, 
+                                   dimension = "bands")
+
+# mask the bands data
+cloud_reduced <- p$mask(data, cloud_reduce)
+```
+
+# Spectral reducer (GNDVI)  
+```{r}
+
+spectral_reduce <- p$reduce_dimension(data = cloud_reduced, 
+                                      dimension = "bands",
+                                      reducer = function(data,context) {
+                                        b3 = data["B03"]
+                                        b8 = data["B08"]
+                                        
+                                        return((b8-b3)/(b8+b3))
+                                      })
+```
+
+# Compiling result  
+```{r}
+result_int 
+
+```
+
+Before, for the mean image, we specified above  
+
+`data = temporal_reduce`.  
+
+Notice how now we just changed it to the step just before getting the mean, represented by the `spectral_reduce` object. 
+
+
+# Downloading multiple individual images (before temporal reducer)  
+We can also download all images.  
+
+One of the differences here is that we need to create and start a job on the server side.
+
+Let's first create the job below.
+```{r}
+job 
+
+```
+Now, we can go ahead and start the job below.
+```{r}
+
+
+```
+Once the job is started, the images are being retrieved and processed according to our reducer steps, all on the server side.  
+Once the images have been processed, we will be able to download them.
+
+How to know when the images are processed and ready for download? 
+
+The chunk below checks for status of the job.  
+Run it a few times to check progress, it won't notify us.  
+It may take 3-4 minutes.  
+
+Once the job is completed, we can download the images.  
+```{r}
+
+```
+Once the job is completed, we can check its results.  
+```{r}
+
+```
+
+Once the job is completed, then we can download the images.  
+
+The chunk below downloads the images from the server, and only works after the job has been completed on the server side.  
+
+```{r}
+
+```
+
+Let's check our output folder.  
+Lot's of images (30)! 
+
+Let's bring them in R to visualize.  
+
+# Importing multiple images to check  
+
+```{r}
+rastlist 
+```
+
+```{r}
+allimages_w 
+
+  # Reading each imagery as a stars object  
+
+  # Wrangling each image
+
+  # Creating an image id
+
+  # Selecting variables
+
+
+allimages_w
+
+allimages_w$image_w[[1]]
+```
+
+# EDA  
+Let's visualize one of the images.  
+```{r}
+
+```
+
+# Wrangling  
+Now let's crop them to the field boundary.  
+```{r}
+allimages_crop 
+
+allimages_crop
+
+mapview(allimages_crop$crop[[5]])
+
+```
+
+# Extracting pixel information  
+Now, let's extract their pixel information.  
+
+This will be helpful to assess pixel-level crop growth over time.  
+```{r}
+pixels 
+
+
+pixels
+```
+
+# Maps by date  
+```{r}
+library(ggthemes)
+
+
+ggsave("../output/timeseries.png",
+       width = 5,
+       height = 7,
+       bg = "white")
+
+```
+Notice how we have many images with holes, representing clouds.  
+
+# Crop development  
+```{r}
+pixels 
+
+```
+
+# Summary  
+In this exercise, we:  
+  - Retrieved and downloaded all Sentinel-2 imagery within the growing season  
+  - Imported into R  
+  - Processed and plotted for maps and crop growth assessment  
+
+
