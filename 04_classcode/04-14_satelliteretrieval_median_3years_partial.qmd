@@ -1,0 +1,739 @@
+---
+title: "Satellite median of all 3 years and spatial temporal stability"
+format: html
+---
+
+# Learning objectives
+
+In this exercise, our goals are to:\
+- Retrieve the median GNDVI across the growing season for 3 separate years\
+- Conduct spatial-temporal stability analysis using the median GNDVI (instead of yield)\
+- Compare GNDVI-derived spatial-temporal classes with the one based on yield.
+
+# Introduction
+
+Performing spatial-temporal yield stability analysis is an important step in precision agriculture as it sets the stage for yield expectation and patterns in space and time.
+
+This information can then be used to address yield limiting factors and serve as basis for variable rate management of certain inputs.
+
+Now, what if:\
+- the grower does not have yield monitoring capacity?\
+- the crop being grown does not have yield monitoring technology developed?
+
+Perhaps we can use satellite imagery to create the zones instead.
+
+Let's give it a try.
+
+# Setup
+
+```{r}
+library(openeo)
+library(mapview)
+library(tidyverse)
+library(stars)
+library(sf)
+library(mapview)
+library(ggthemes)
+
+```
+
+Importing field boundary
+
+```{r}
+field <- read_sf("../../05_digitizing/output/boundary.geojson") %>%
+  st_transform(crs = 6345) %>%
+  st_buffer(dist = -10) # because values close to and outside the border are normally higher and thus skew color scales when plotting
+
+field
+```
+
+```{r}
+mapview(field)
+```
+
+# Connecting to the API
+
+```{r}
+connection <- connect(host = "https://openeo.dataspace.copernicus.eu")
+```
+
+# Login credentials
+
+```{r}
+login() #after running this, go to console and hit ENTER/RETURN on your keyboard to be prompted to browser to login.  
+```
+
+# Starting a process
+
+```{r}
+p <- processes()
+```
+
+# Imagery for 2017
+
+On a previous exercise, we pulled the growing-season **mean** GNDVI for 2017.
+
+Although the mean is useful, it is also impacted by outliers.\
+Outliers could happen when our window of time include too many dates with soil or low plant coverage signal.
+
+To avoid that problem, we can use the **median** instead, which is less sensitive to outliers.
+
+Let's pull that for 2017 first.
+
+## Setting data retrieval parameters
+
+Here we need to determine our query parameters, including:
+
+-   **Collection and data product** we want to pull from
+
+```{r}
+data <- p$load_collection(id = "SENTINEL2_L2A", 
+                         spatial_extent = field,
+                         temporal_extent = list(
+                           "2017-05-01", # start date
+                           "2017-11-30" # end date
+                           ),
+                         bands = list("B03","B08", "SCL") #B03 = green, B08 = NIR, SCL contains land classification used to remove clouds
+)
+
+data
+```
+
+## Cloud masking
+
+```{r}
+# define filter function to create mask
+filter_function <- function(data, context) {
+  vegetation <- p$eq(data["SCL"], 4) # vegetation is 4
+  non_vegetation <- p$eq(data["SCL"], 5) # non-vegetation is 5
+  # we want to mask all other values, so NOT (4 OR 5)
+  return(p$not(p$or(vegetation, non_vegetation)))
+}
+
+# create mask by reducing bands with our defined formula
+cloud_reduce <- p$reduce_dimension(data = data, 
+                                   reducer = filter_function, 
+                                   dimension = "bands")
+
+# mask the bands data
+cloud_reduced <- p$mask(data, cloud_reduce)
+```
+
+## Spectral reducer (GNDVI)
+
+```{r}
+
+spectral_reduce <- p$reduce_dimension(data = cloud_reduced, 
+                                      dimension = "bands",
+                                      reducer = function(data,context) {
+                                        b3 = data["B03"]
+                                        b8 = data["B08"]
+                                        
+                                        return((b8-b3)/(b8+b3))
+                                      })
+```
+
+## Temporal reducer (median)
+
+```{r}
+temporal_reduce <- p$reduce_dimension(data = spectral_reduce,
+                                      dimension = "t", 
+                                      reducer = function(x,y){
+                                        ...
+                                      })
+
+
+```
+
+## Compiling result
+
+```{r}
+result <- p$save_result(data=temporal_reduce,
+                        format= "GTiff") 
+
+```
+
+Up until the chunk above, these all are sent to the server for processing.
+
+Once the processing is done on the server, we download the result (next chunk).
+
+## Downloading result
+
+```{r}
+compute_result(graph = result, 
+               output_file = "../output/2017_median_GNDVI.gtif")
+```
+
+## Importing result to check
+
+```{r}
+gndvi_median <- read_stars("../output/2017_median_GNDVI.gtif") %>%
+  st_transform(crs = 6345) %>%
+  rename(gndvi = 1) %>%
+  st_crop(field)
+
+gndvi_median
+
+```
+
+```{r}
+mapview(gndvi_median)
+```
+
+```{r}
+gndvi_17_map <- ggplot()+
+  geom_stars(data = gndvi_median) +
+  theme_map() +
+  labs(title = "GNDVI median for 2017") +
+  scale_fill_viridis_c(limits = c(.2, .61))
+
+
+gndvi_17_map
+```
+
+# Imagery for 2019  
+
+Now, let's pull GNDVI median for 2019.
+
+## Setting data retrieval parameters  
+
+Here we need to determine our query parameters, including:
+
+-   **Collection and data product** we want to pull from
+
+```{r}
+data_19 <- p$load_collection(id = "SENTINEL2_L2A", 
+                         spatial_extent = field,
+                         temporal_extent = list(
+                           "", # start date
+                           "" # end date
+                           ),
+                         bands = list("B03","B08", "SCL") #B03 = green, B08 = NIR, SCL contains land classification used to remove clouds
+)
+
+data_19
+```
+
+## Cloud masking
+
+```{r}
+# create mask by reducing bands with our defined formula
+cloud_reduce_19 <- p$reduce_dimension(data = data_19, 
+                                   reducer = filter_function, 
+                                   dimension = "bands")
+
+# mask the bands data
+cloud_reduced_19 <- p$mask(data_19, cloud_reduce_19)
+```
+
+## Spectral reducer (GNDVI)
+
+```{r}
+
+spectral_reduce_19 <- p$reduce_dimension(data = cloud_reduced_19, 
+                                      dimension = "bands",
+                                      reducer = function(data,context) {
+                                        b3 = data["B03"]
+                                        b8 = data["B08"]
+                                        
+                                        return((b8-b3)/(b8+b3))
+                                      })
+```
+
+## Temporal reducer (median)
+
+```{r}
+temporal_reduce_19 <- p$reduce_dimension(data = spectral_reduce_19,
+                                      dimension = "t", 
+                                      reducer = function(x,y){
+                                        median(x, na.rm = T)
+                                      })
+
+
+```
+
+## Compiling result
+
+```{r}
+result_19 <- p$save_result(data=temporal_reduce_19,
+                        format= "GTiff") 
+
+```
+
+Up until the chunk above, these all are sent to the server for processing.
+
+Once the processing is done on the server, we download the result (next chunk).
+
+## Downloading result
+
+```{r}
+compute_result(graph = result_19, 
+               output_file = "../output/2019_median_GNDVI.gtif")
+```
+
+## Importing result to check
+
+```{r}
+gndvi_median_19 <- read_stars("../output/2019_median_GNDVI.gtif") %>%
+  st_transform(crs = 6345) %>%
+  rename(gndvi = 1) %>%
+  st_crop(field)
+
+gndvi_median_19
+
+```
+
+```{r}
+mapview(gndvi_median_19)
+```
+
+```{r}
+gndvi_19_map <- ggplot()+
+  geom_stars(data = gndvi_median_19) +
+  theme_map() +
+  labs(title = "GNDVI median for 2019") +
+  scale_fill_viridis_c(limits = c(.2, .61))
+
+
+gndvi_19_map
+
+```
+
+# Imagery for 2020  
+
+Now, let's pull GNDVI median for 2020.
+
+## Setting data retrieval parameters
+
+Here we need to determine our query parameters, including:
+
+-   **Collection and data product** we want to pull from
+
+```{r}
+data_20 <- p$load_collection(id = "SENTINEL2_L2A", 
+                         spatial_extent = field,
+                         temporal_extent = list(
+                           "", # start date
+                           "" # end date
+                           ),
+                         bands = list("B03","B08", "SCL") #B03 = green, B08 = NIR, SCL contains land classification used to remove clouds
+)
+
+data_20
+```
+
+## Cloud masking
+
+```{r}
+# create mask by reducing bands with our defined formula
+cloud_reduce_20 <- p$reduce_dimension(data = data_20, 
+                                   reducer = filter_function, 
+                                   dimension = "bands")
+
+# mask the bands data
+cloud_reduced_20 <- p$mask(data_20, cloud_reduce_20)
+```
+
+## Spectral reducer (GNDVI)
+
+```{r}
+
+spectral_reduce_20 <- p$reduce_dimension(data = cloud_reduced_20, 
+                                      dimension = "bands",
+                                      reducer = function(data,context) {
+                                        b3 = data["B03"]
+                                        b8 = data["B08"]
+                                        
+                                        return((b8-b3)/(b8+b3))
+                                      })
+```
+
+## Temporal reducer (median)
+
+```{r}
+temporal_reduce_20 <- p$reduce_dimension(data = spectral_reduce_20,
+                                      dimension = "t", 
+                                      reducer = function(x,y){
+                                        median(x, na.rm = T)
+                                      })
+
+
+```
+
+## Compiling result
+
+```{r}
+result_20 <- p$save_result(data=temporal_reduce_20,
+                        format= "GTiff") 
+
+```
+
+Up until the chunk above, these all are sent to the server for processing.
+
+Once the processing is done on the server, we download the result (next chunk).
+
+## Downloading result
+
+```{r}
+compute_result(graph = result_20, 
+               output_file = "../output/2020_median_GNDVI.gtif")
+```
+
+## Importing result to check
+
+```{r}
+gndvi_median_20 <- read_stars("../output/2020_median_GNDVI.gtif") %>%
+  st_transform(crs = 6345) %>%
+  rename(gndvi = 1) %>%
+  st_crop(field)
+
+gndvi_median_20
+
+```
+
+```{r}
+mapview(gndvi_median_20)
+```
+
+```{r}
+gndvi_20_map <- ggplot()+
+  geom_stars(data = gndvi_median_20) +
+  theme_map() +
+  labs(title = "GNDVI median for 2020")+
+  scale_fill_viridis_c(limits = c(.2, .61))
+
+
+gndvi_20_map
+```
+
+# Combining all maps
+
+```{r}
+library(patchwork)
+gndvi_17_map + gndvi_19_map + gndvi_20_map
+```
+
+# Spatial-temporal stability analysis
+
+## From raster to vector
+
+First, let's transform from raster to vector. For 2017:
+
+```{r}
+gndvi_median_v <- gndvi_median %>%
+  st_as_sf() %>%
+  rename(gndvi_17 = gndvi)
+
+gndvi_median_v
+```
+
+For 2019:
+
+```{r}
+gndvi_median_19_v <- gndvi_median_19 %>%
+  st_as_sf() %>%
+  rename(gndvi_19 = gndvi)
+
+gndvi_median_19_v
+
+```
+
+For 2020:
+
+```{r}
+gndvi_median_20_v <- gndvi_median_20 %>%
+  st_as_sf() %>%
+  rename(gndvi_20 = gndvi)
+
+gndvi_median_20_v
+
+```
+
+# Standardizing with the field-level median
+
+Beginning with 2017 yield data.
+
+```{r sy_17}
+sy_17 
+
+sy_17
+```
+
+Let's check how does this standardization looks like in space.
+
+```{r sy_17 map}
+sy_17_map <- ggplot() +
+  geom_sf(data = sy_17,
+          aes(fill = sy17),
+          color = NA
+          ) +
+  scale_fill_gradient2(low = "#440154FF",
+                       mid = "white",
+                       high = "#22A884FF",
+                       midpoint = 100,
+                       breaks = seq(0, 180, 20),
+                       limits = c(0, 180)
+                       ) +
+  labs(title = "2017",
+       fill = "Median-\nstandardized \nGNDVI") +
+  theme_map() +
+  theme(legend.position = "right")
+
+
+sy_17_map 
+```
+
+Repeat the same steps for 2019.
+
+```{r sy_19}
+sy_19 <- gndvi_median_19_v %>%
+  mutate(median_gndvi = median(gndvi_19)) %>%
+  mutate(sy = gndvi_19/median_gndvi*100,
+         sy = round(sy, 1)
+         ) %>%
+  dplyr::select(sy19 = sy, geometry)
+
+sy_19
+```
+
+```{r sy_19 map}
+sy_19_map <- ggplot()+
+  geom_sf(data = sy_19,
+          aes(fill = sy19), 
+          color = NA)+
+  scale_fill_gradient2(low = "#440154FF",
+                       mid = "white",
+                       high = "#22A884FF",
+                       midpoint = 100,
+                       breaks = seq(0,180,20),
+                       limits = c(0, 180)
+  )+
+  labs(title="2019")+
+  theme_map()+
+  theme(legend.position = "none")
+
+
+sy_19_map 
+```
+
+Repeat the same steps for 2020.
+
+```{r sy_20}
+sy_20  <- gndvi_median_20_v %>%
+  mutate(median_gndvi = median(gndvi_20)) %>%
+  mutate(sy = gndvi_20/median_gndvi*100,
+         sy = round(sy, 1)
+         ) %>%
+  dplyr::select(sy20 = sy, geometry)
+
+sy_20
+```
+
+```{r sy_20 map}
+sy_20_map <- ggplot()+
+  geom_sf(data = sy_20,
+          aes(fill = sy20), 
+          color = NA)+
+  scale_fill_gradient2(low = "#440154FF",
+                       mid = "white",
+                       high = "#22A884FF",
+                       midpoint = 100,
+                       breaks = seq(0,180,20),
+                       limits = c(0,180)
+  )+
+  labs(title = "2020")+
+  theme_map()+
+  theme(legend.position = "none")
+
+sy_20_map 
+```
+
+Let's plot all 3 maps side-by-side to assist in visualizing them.
+
+```{r all maps}
+library(patchwork)
+
+sy_17_map + sy_19_map + sy_20_map +
+  plot_layout(guides = "collect")
+
+ggsave("../output/spatialstability_gndvi.png",
+       width = 7, height = 3.5)
+
+```
+
+```{r}
+summary(sy_17$sy17) #55 to 105
+summary(sy_19$sy19) #46 to 132
+summary(sy_20$sy20) #63 to 130
+```
+
+# Spatio-temporal stability  
+
+To perform a temporal analysis, we need to merge all three data frames into one.
+
+After joining the data sets, we still only have their information on year-specific yield spatial standardization.
+
+> How can we merge these pieces of information to create a spatial-temporal classification?
+
+We can use the yield mean and coefficient of variation (CV) of each pixel over 3 years, and use that to guide our decision.
+
+First, let's merge the 3 data sets and calculate pixel-based mean and cv.
+
+## Pixel-based mean and cv
+
+```{r}
+sy_all <- sy_17 %>%
+  st_join(sy_19,
+          join = st_equals,
+          left = T
+          ) %>%
+  st_join(sy_20,
+          join = st_equals,
+          left = T
+          ) %>%
+  rowwise() %>%
+  mutate(mean_pixel = mean(c(sy17, sy19, sy20))) %>%
+  mutate(sd_pixel = sd(c(sy17, sy19, sy20))) %>%
+  mutate(cv_pixel = (sd_pixel/mean_pixel)*100)
+
+sy_all
+
+```
+
+## EDA on pixel-based stats
+
+Summary:
+
+```{r summary mean }
+summary(sy_all$mean_pixel)
+```
+
+Density plot:
+
+```{r density plot mean }
+ggplot(data = sy_all,
+       aes(x = mean_pixel)
+       ) +
+  geom_density() +
+  geom_rug()
+  
+
+```
+
+```{r summary }
+summary(sy_all$cv_pixel)
+```
+
+Density plot:
+
+```{r density plot }
+ggplot(data = sy_all,
+       aes(x = cv_pixel)
+       ) +
+  geom_density() +
+  geom_rug()
+  
+
+```
+
+Standardized mean map
+
+```{r mean map}
+sy_all_mean <- ggplot() +
+  geom_sf(data = sy_all,
+          aes(fill = mean_pixel),
+          color = NA
+          ) +
+  scale_fill_viridis_b(option = "C",
+                       breaks = c(80, 120))
+
+
+sy_all_mean
+```
+
+Standardized mean cv map
+
+```{r cv map}
+sy_all_cv <- ggplot() +
+  geom_sf(data = sy_all,
+          aes(fill = cv_pixel),
+          color = NA
+          ) +
+  scale_fill_viridis_b(option = "C",
+                       breaks = 30)
+
+sy_all_cv
+
+```
+
+```{r both maps}
+sy_all_mean + sy_all_cv
+
+ggsave("../output/sy-temp-stability.png",
+       width = 6, height = 4)
+
+```
+
+# Classification  
+
+Here's how I want to classify our spatial-temporal classes:
+
+-   If a pixel has CV \> 30%, then it is classified as "unstable"
+
+-   If a pixel has CV \< 30%, and mean standardized yield \> 120%, then it is classified as "high-stable"
+
+-   If a pixel has CV \< 30%, and mean standardized yield \> 80% and \< 120%, then it is classified as "medium-stable"
+
+-   If a pixel has CV \< 30%, and mean standardized yield \< 80%, then it is classified as "low-stable"
+
+> Given our summary for mean_pixel and cv_pixel, do you think these thresholds would work?
+
+Let's apply these rules below:
+
+```{r}
+sy_all_class <- sy_all %>%
+  mutate(stclass = case_when(
+    cv_pixel > 30 ~ "unstable",
+    cv_pixel < 30 & mean_pixel >= 120 ~ "high-stable",
+    cv_pixel < 30 & mean_pixel < 120 & mean_pixel >= 80 ~ "medium-stable",
+    cv_pixel < 30 & mean_pixel < 80 ~ "low-stable"
+  ))
+
+sy_all_class 
+```
+
+Now, let's plot the classes.
+
+```{r}
+ggplot() +
+  geom_sf(data = sy_all_class,
+          aes(fill = stclass),
+          color = NA
+          ) +
+  scale_fill_viridis_d(option = "C") +
+  theme_map() +
+  theme(legend.position = "right")
+
+ggsave("../output/stabclass.png",
+       bg = "white")
+
+```
+
+Let's go back to the classification chunk and choose some different thresholds.
+
+# Comparison with yield-based classes  
+
+![Yield](../../07_yieldmonitor/output/stabclass.png)
+
+How well do they compare?  
+Can we use satellite imagery to estimate spatial-temporal yield patterns?  
+
+# Summary  
+
+Today, we:  
+
+  - Retrieved GNDVI season median for 3 years  
+  - Calculated spatial-temporal stability classes based on GNDVI  
+  - Compared the GNDVI-based vs. yield-bases stability classes  
+
+

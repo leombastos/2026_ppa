@@ -26,15 +26,16 @@ On this script, let's start the code to retrieve **all daily imagery** for our c
 Since we have 3 years of yield data (2017, 2019, 2020), let's retrieve imagery for those years, **starting with 2017**.  
 
 # Setup  
+
 ```{r}
-#install.packages("openeo")
+#install.packages("ggrepel")
 library(openeo)
 library(mapview)
 library(tidyverse)
 library(stars)
 library(sf)
 library(mapview)
-
+library(ggrepel)
 ```
 
 Importing field boundary
@@ -223,6 +224,13 @@ pixels
 
 
 pixels
+```
+
+Checking number of pixels in each image
+```{r}
+pixels %>%
+  group_by(date) %>%
+  tally
 ```
 
 # Maps by date  
