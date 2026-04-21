@@ -1,0 +1,291 @@
+---
+title: "Hyperspectral data post-processing"
+format: html
+author: "Niva Nushrat, Leo Bastos"
+---
+
+# Introduction  
+
+In this exercise we are going to use hyperspectral image (HSI) from a 19-acre farmers' peanut field in Tifton, GA.   
+
+A total of **17 georeferenced points** in the field were plant sampled for aflatoxin.
+
+Aflatoxin is a toxin produced by a fungus that infects peanut pods. Detecting aflatoxin-prone regions in a field is important to avoid mixing infected areas from uninfected areas when harvesting. Peanuts contaminated with aflatoxin receive a price penalty when being sold, which reduces growers profitability and peanut usability.
+
+The sampled peanut pods were sent to the laboratory for aflatoxin level analysis. We will be using the aflatoxin level (mg/kg) as ground truth.
+
+On the same day when georeferenced plant samples were collected, we also collected the UAV HSI data with **Headwall Nano Hyperspectral sensor**, flown at 50m altitude. After collecting the sensor data, we pre-processed the HSI cubes in **Spectral View** software. For that, the following steps were performed:
+
+  - Radiation correction  
+  - Geographic correction  
+  - Orthomosaic creation  
+  - Export as .tif stack raters with 272 bands  
+  - Cropped image using field boundary  
+  - Removed soil pixels  
+
+Now, we will extract the reflectance from the peanut plants and calculate the **many NDVI** to get the best bands to explain aflatoxin on this farm for that date.
+
+# Learning Objectives  
+
+Today's learning objectives are to:
+
+  - Learn about HSI data  
+  - Visualize the reflectance variablity in bands  
+  - Extract the reflectance values (table format) from image layer
+  - Play with different combination of bands to create multiple different vegetation indices  
+  - Identify the best NDVI to predict aflatoxin  
+
+# Setup  
+
+Loading libraries
+
+```{r}
+#install.packages("exactextractr")
+
+library(raster)
+library(sf)
+library(dplyr)
+library(terra)
+library(ggplot2)
+library(tidyr)
+library(mapview)
+library(purrr)
+library(stars)
+library(ggthemes)
+library(exactextractr)
+library(readr)
+library(stringr)
+```
+
+We will import the **band stack** including **272 bands**.
+
+HSI stacks at fine spatial resolution (~5-10 cm) can be extremely heavy!
+
+The original stack for this field was **\~30 GB in size**.  
+With files this large, any computation takes a long time to run.
+
+Because our objective is more related to **what** can be done with HSI data, we downsized the original file to **5-m spatial resolution**.  
+
+This way we can perform operations on the data without long computational times while still learning about the potential uses of HSI data.  
+
+Let's import this layer below:
+
+```{r hsi_resampled}
+hsi_resampled 
+
+hsi_resampled
+```
+
+Now, let's import the sampling point locations on the field.
+
+The whole 19-ac field is divided into a grid and the **ground-truth sample** was collected around the sampling point from the **center of each grid cell**, represented by the points below:  
+
+```{r points }
+points 
+
+points
+```
+
+Let's also import our ground-truth aflatoxin data.  
+```{r afl}
+afl 
+
+afl
+```
+
+# EDA  
+## Exploring some of the bands
+```{r}
+ggplot() + 
+  ....
+  ....
+  coord_equal() +
+  scale_fill_viridis_c() +
+  theme_map() +
+  theme(legend.position = "right")
+```
+
+Checking the sampling points:  
+```{r}
+mapview(points)
+```
+
+Checking ground-truth aflatoxin statistical distribution:  
+```{r}
+ggplot(data = afl,
+       aes(x = ...)) +
+  geom_density() +
+  geom_rug()
+```
+
+
+# Wrangling  
+To match our ground truth data sampling location with imagery, we need to extend the footprint of each sampling point.
+
+That is because pixels surrounding the sampling point likely represent that **ground-truth aflatoxin level**, and not only the pixel under the sampling point.
+
+For that, we will create a **positive buffer of 5-m** for which all pixels within it will be averaged to represent the ground-truth conditions.
+
+Besides that, we will also join the aflatoxin data with their sampling points.
+
+```{r points_buffer}
+points_buffer <- points %>%
+  janitor::clean_names() %>%
+  st_transform(crs = 32617) %>%
+  # Buffer
+
+    # Joining with aflatoxin
+
+    # Dropping missing data
+
+points_buffer
+
+```
+Let's check the result:
+```{r}
+mapview(points_buffer,
+        zcol = ...)
+```
+
+# Extraction of reflectance value as an average of the plot  
+
+Now, let's extract the band values for each sampling point, by averaging all pixel values within the area of the bufferred points.
+
+```{r hsi_mean}
+hsi_mean <- hsi_resampled 
+
+hsi_mean
+```
+
+Now that we have reflectance value for all bands, we can start our analysis according to our objective.
+
+We can calculate **multiple vegetation indices** with different combinations of visible (vis) and NIR bands.
+
+# Extract all wavelengths (Band names) under each Band  
+
+NDVI = (NIR_Band - Vis_Band) / (NIR_Band + Vis_Band)
+
+Wavelength starts from   
+  - Band_1 = 398.401 nm, to   
+  - Band_272 = 1002.74 nm
+
+Our Headwall Nano sensor Spectral Resolution = 2.2 nm.
+
+Visible: \~ 398–690 nm (e.g., **Band_1** \~398 nm to **Band_132**\~690.5) : 131 Bands
+
+NIR: \~ 700–1000 nm (e.g., **Band_137**\~701.6 to **Band_172**\~1002.7) : 35 bands
+
+With that, we can calculate a total of 131 x 35 = **4585** different NDVIs!
+
+# Calculate all NDVI combinations  
+
+Lets extract the Bands name which falls under Vis and NIR Bands for this sensor, and calculate NDVI.
+
+```{r}
+ndvi_all <- hsi_mean %>%
+  # selecting only red and nir bands  
+  dplyr::select(sample_id, 
+                afl_mgkg,
+                Band_1:Band_132, 
+                Band_137:Band_172) %>%
+  # pivoting red bands
+  pivot_longer(cols = ..., 
+               names_to = "vis_band",
+               values_to = "vis_value"
+               ) %>%
+  # pivoting nir bands
+  pivot_longer(cols = ..., 
+               names_to = "nir_band",
+               values_to = "nir_value"
+               ) %>%
+  # calculating ndvi 
+  mutate(ndvi = (nir_value - vis_value)/(nir_value + vis_value)) %>%
+  # creating new id column  
+  mutate(ndvi_band = paste0(vis_band,".",nir_band))
+
+ndvi_all
+```
+
+# Compute all the NDVI vs. aflatoxin correlations  
+
+Now, as we got all the combination of NDVI, we want to select those Bands which tell us more information. We want to predict our target variable using the NDVI values. Therefore, we chose R2 metric to screen for best NDVI value.
+
+```{r}
+# Running regression for each NDVI
+
+ndvi_reg <- ndvi_all %>%
+  group_by(ndvi_band,
+           vis_band,
+           nir_band) %>%
+  nest()
+
+ndvi_reg
+```
+
+We can conclude that the combination of **visible band = 68** and **nir band = 139** obtained the best r2 in explaining variability in aflatoxin.  
+
+Nonetheless, the r2 is still very small.
+
+# Exploring all - heatmap  
+```{r}
+ndvi_reg %>%
+  ungroup() 
+
+ggsave("../output/heatmap.png",
+       width = 8,
+       height = 4)
+```
+Which vis-nir regions seem to have higher correlations?  
+
+# Exploring best NDVI  
+Lets explore the individual Vis and NIR Bands that are giving the best r sq and also the NDVI plot.  
+
+Firs, as a scatterplot:
+```{r}
+
+
+```
+
+Now let's extract the best bands, calculate their NDVI, and make a map:
+```{r ndvi_best}
+ndvi_best 
+
+ndvi_best
+```
+
+```{r}
+ggplot() +
+  geom_stars(data = ...,
+             aes(fill = ndvi)) +
+  scale_fill_viridis_c(na.value = "transparent") +
+  geom_sf(data = points_buffer,
+          shape = 21,
+          fill = "white",
+          alpha = .4) +
+  geom_sf_text(data = points_buffer,
+               aes(label = sample_id)) +
+    labs(title = "NDVI from Band 68 (vis) and Band 139 (nir)",
+         x = "Longitude", 
+         y = "Latitude", 
+         fill = "NDVI") +
+    theme_map() +
+  theme(legend.position = "right")
+
+ggsave("../output/NVDI_68_139.png", 
+       width = 8, 
+       height = 6, 
+       dpi = 300, 
+       bg="white")
+```
+
+# Summary
+
+In this exercise we learned:  
+
+  - HSI Workflow of Headwall HSI
+  - Reflectance Extraction of all Bands from Stacked Raster
+  - All Narrow Band Extraction within a Range
+  - Vegetation Indices Calculation with all combination
+  - Best Band Combination selection for VI depending upon certain metric
+
+# Quiz: go to eLC
